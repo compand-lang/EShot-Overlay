@@ -1,0 +1,394 @@
+name: Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  APP_VERSION: '4.2.7'
+  QT_VERSION: '6.8.2'
+  TESSERACT_RUNTIME_RELEASE: 'v4.1.2'
+
+jobs:
+  linux-build:
+    name: Build Linux x64
+    runs-on: ubuntu-22.04
+    env:
+      BUILD_DIR: ${{ github.workspace }}/build-linux
+      DIST_DIR: ${{ github.workspace }}/dist-linux
+      ROOT_DIR: ${{ github.workspace }}/linux-root
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply Linux tag version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          version="$(bash scripts/linux/apply-release-version.sh "${GITHUB_REF_NAME}" CMakeLists.txt)"
+          echo "APP_VERSION=${version}" >> "$GITHUB_ENV"
+
+      - name: Resolve Linux package version
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          version="$(sed -n 's/^project(EShot VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.txt | head -n1)"
+          test -n "$version"
+          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            qt6-base-dev \
+            qt6-base-dev-tools \
+            qt6-qpa-plugins \
+            qt6-wayland \
+            libqt6svg6 \
+            libx11-dev \
+            libgl1-mesa-dev \
+            libxcb-cursor0 \
+            libxkbcommon-dev \
+            libsecret-1-dev \
+            desktop-file-utils \
+            appstream \
+            ffmpeg \
+            gstreamer1.0-tools \
+            gstreamer1.0-pipewire \
+            gstreamer1.0-pulseaudio \
+            gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad \
+            gstreamer1.0-plugins-ugly \
+            gstreamer1.0-libav \
+            tesseract-ocr \
+            tesseract-ocr-eng \
+            xdg-desktop-portal \
+            xdg-desktop-portal-gtk \
+            xvfb \
+            xauth
+
+      - name: Validate Linux desktop metadata
+        run: |
+          desktop-file-validate packaging/linux/io.github.benoks.EShot.desktop
+          appstreamcli validate --no-net packaging/linux/io.github.benoks.EShot.metainfo.xml
+
+      - name: Configure
+        run: >
+          cmake -S . -B "${{ env.BUILD_DIR }}"
+          -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build "${{ env.BUILD_DIR }}" --parallel
+
+      - name: Test
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ctest --test-dir "${{ env.BUILD_DIR }}" --output-on-failure
+
+      - name: Install
+        run: >
+          cmake --install "${{ env.BUILD_DIR }}"
+          --prefix "${{ env.DIST_DIR }}"
+
+      - name: Validate installed Linux app metadata
+        run: |
+          rm -rf "${{ env.ROOT_DIR }}"
+          DESTDIR="${{ env.ROOT_DIR }}" cmake --install "${{ env.BUILD_DIR }}" --prefix /usr
+          desktop-file-validate "${{ env.ROOT_DIR }}/usr/share/applications/io.github.benoks.EShot.desktop"
+          appstreamcli validate-tree --no-net "${{ env.ROOT_DIR }}"
+
+      - name: Smoke test Linux binary
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ${{ env.DIST_DIR }}/bin/EShot --test-gif
+
+      - name: Package Linux builds
+        run: |
+          bash scripts/linux/package-linux.sh
+          bash scripts/linux/build-appimage.sh
+
+      - name: Smoke test AppImage
+        env:
+          ESHOT_SKIP_RUNTIME_SETUP: '1'
+        run: |
+          mkdir -p appimage-test-home
+          xvfb-run -a env HOME="$PWD/appimage-test-home" packages/EShot-v${APP_VERSION}-x86_64.AppImage --appimage-extract-and-run --test-gif
+
+      - name: Verify AppImage portability
+        run: bash scripts/linux/verify-appimage-portability.sh "packages/EShot-v${APP_VERSION}-x86_64.AppImage"
+
+      - name: Inspect Linux packages
+        run: |
+          ls -lh packages
+          dpkg-deb --info packages/*.deb
+
+      - name: Upload Linux build
+        uses: actions/upload-artifact@v4
+        with:
+          name: EShot-linux-x64
+          path: ${{ env.DIST_DIR }}
+          if-no-files-found: error
+
+      - name: Upload Linux packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: EShot-linux-packages
+          path: |
+            packages/*.AppImage
+            packages/*.deb
+            packages/*.tar.gz
+          if-no-files-found: error
+
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # x64 build on the standard Windows runner
+          - arch: x64
+            runner: windows-latest
+            cmake_arch: x64
+            qt_arch: win64_msvc2022_64
+            ffmpeg_url: 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip'
+
+          # ARM64 build on the native Windows 11 Arm runner (FFmpeg is native Arm)
+          - arch: arm64
+            runner: windows-11-arm
+            cmake_arch: ARM64
+            qt_arch: win64_msvc2022_arm64_cross_compiled
+            ffmpeg_url: 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-winarm64-gpl.zip'
+
+    env:
+      BUILD_DIR: ${{ github.workspace }}/build
+      DIST_DIR: ${{ github.workspace }}/dist
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply tag version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}' -replace '^[vV]', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Release tags must use vMAJOR.MINOR.PATCH, for example v3.0.5"
+          }
+
+          (Get-Content CMakeLists.txt -Raw) `
+            -replace 'project\(EShot VERSION \d+\.\d+\.\d+', "project(EShot VERSION $version" |
+            Set-Content CMakeLists.txt -NoNewline
+          (Get-Content EShot_Setup.iss -Raw) `
+            -replace '#define MyAppVersion\s+"\d+\.\d+\.\d+"', "#define MyAppVersion   `"$version`"" |
+            Set-Content EShot_Setup.iss -NoNewline
+
+          "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Building release version $version"
+
+      # Qt 6 (qtbase covers Core/Gui/Widgets/Network — no extra modules needed).
+      # The arm64 arch is Qt's cross-compiled WoA package; --autodesktop pulls in
+      # the companion x64 host Qt that provides the build/deploy tools (moc, rcc,
+      # windeployqt), which run on the Arm runner via emulation. The flag is a
+      # documented no-op for the x64 arch.
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: ${{ matrix.qt_arch }}
+          extra: --autodesktop
+          cache: true
+
+      # Stage the bundled third-party binaries into the locations CMake's
+      # EXISTS() checks look for, so they get copied + installed automatically.
+      # tessdata/*.traineddata is already committed under third_party/tesseract.
+      - name: Stage FFmpeg (${{ matrix.arch }}, native)
+        run: |
+          curl -L -o ffmpeg.zip "${{ matrix.ffmpeg_url }}"
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_extract -Force
+          New-Item -ItemType Directory -Force third_party/ffmpeg/bin | Out-Null
+          Copy-Item (Get-ChildItem -Recurse ffmpeg_extract/*/bin/*.exe) third_party/ffmpeg/bin/ -Force
+
+      # Reuse the architecture-specific runtime already validated in v4.1.2.
+      # Actions caches created by tag builds are scoped to that tag, so compiling
+      # with vcpkg here would repeat the full Tesseract build for every release.
+      - name: Stage Tesseract (${{ matrix.arch }}, verified runtime)
+        shell: pwsh
+        run: |
+          $release = "${{ env.TESSERACT_RUNTIME_RELEASE }}"
+          $archive = "EShot-$release-${{ matrix.arch }}-portable.zip"
+          $url = "https://github.com/${{ github.repository }}/releases/download/$release/$archive"
+          curl.exe -L --fail --retry 3 --retry-delay 5 -o tesseract-runtime.zip $url
+          if ($LASTEXITCODE -ne 0) { throw "Could not download $archive" }
+          Expand-Archive tesseract-runtime.zip -DestinationPath tesseract-runtime -Force
+          $runtime = Get-ChildItem tesseract-runtime -Recurse -Directory |
+            Where-Object { Test-Path (Join-Path $_.FullName "tesseract.exe") } |
+            Select-Object -First 1
+          if (-not $runtime) { throw "Tesseract runtime not found in $archive" }
+          $dst = "third_party/tesseract"
+          New-Item -ItemType Directory -Force $dst | Out-Null
+          Copy-Item "$($runtime.FullName)\*" $dst -Recurse -Force
+          & "$dst\tesseract.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw "Downloaded tesseract.exe failed to launch" }
+
+      # Let CMake pick the default (newest installed) Visual Studio generator
+      # and select the target arch with -A. We deliberately don't pin the
+      # generator version: the windows-latest image migrated to VS 2026 (gen
+      # "Visual Studio 18 2026") in June 2026, dropping VS 2022, while the
+      # windows-11-arm image still ships VS 2022 ("Visual Studio 17 2022").
+      # Omitting -G keeps both runners working across image migrations; -A is
+      # valid with any VS generator.
+      - name: Configure
+        run: >
+          cmake -S . -B "${{ env.BUILD_DIR }}"
+          -A ${{ matrix.cmake_arch }}
+          -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build "${{ env.BUILD_DIR }}" --config Release --parallel
+
+      - name: Install
+        run: >
+          cmake --install "${{ env.BUILD_DIR }}"
+          --config Release
+          --prefix "${{ env.DIST_DIR }}"
+
+      # Bundle the Qt runtime + the MSVC redistributable DLLs next to the exe so
+      # the artifact (and installer) is self-contained.
+      #
+      # For the cross-compiled arm64 Qt, windeployqt is not in the target's bin
+      # (it's a host-only x64 tool installed by --autodesktop). We locate it and
+      # point it at the target Qt via --qtpaths so it deploys arm64 DLLs, per
+      # Qt's documented cross-deployment flow.
+      - name: Deploy Qt runtime
+        shell: pwsh
+        run: |
+          $exe   = "${{ env.DIST_DIR }}/bin/EShot.exe"
+          $qtBin = Join-Path $env:QT_ROOT_DIR 'bin'
+          $wdq   = Join-Path $qtBin 'windeployqt.exe'
+          $extra = @()
+
+          if (-not (Test-Path $wdq)) {
+            # Cross build: find the host windeployqt under the autodesktop Qt.
+            $verRoot = Split-Path $env:QT_ROOT_DIR -Parent
+            $wdq = (Get-ChildItem $verRoot -Recurse -Filter windeployqt.exe |
+                    Select-Object -First 1).FullName
+            if (-not $wdq) { throw "windeployqt.exe not found under $verRoot" }
+
+            # The target bin ships qtpaths as a .bat wrapper that invokes the
+            # host x64 qtpaths with -qtconf target_qt.conf (so it reports arm64
+            # paths). windeployqt accepts the .bat and deploys arm64 DLLs.
+            $qtpaths = Get-ChildItem $qtBin -Filter 'qtpaths6.bat' |
+                       Select-Object -First 1
+            if (-not $qtpaths) { throw "target qtpaths6.bat not found in $qtBin" }
+            $extra = @('--qtpaths', $qtpaths.FullName)
+          }
+
+          Write-Host "Using $wdq $extra"
+          & $wdq --release --no-translations @extra $exe
+
+          $svgRuntime = @(
+            "${{ env.DIST_DIR }}/bin/Qt6Svg.dll",
+            "${{ env.DIST_DIR }}/bin/imageformats/qsvg.dll",
+            "${{ env.DIST_DIR }}/bin/iconengines/qsvgicon.dll"
+          )
+          foreach ($file in $svgRuntime) {
+            if (-not (Test-Path $file)) { throw "Missing SVG runtime: $file" }
+          }
+
+      # windeployqt doesn't reliably deploy the loose MSVC CRT DLLs in CI: on
+      # arm64 it emits vc_redist.arm64.exe instead, and on x64 it skips them when
+      # it can't locate the redist (no vcvars env in this step). Copy the matching
+      # arch's MSVC runtime next to the exe so the app-local layout — and the
+      # installer — is complete on both architectures. (matrix.arch values "x64"
+      # and "arm64" match the VS redist folder names.)
+      - name: Bundle MSVC runtime
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -property installationPath
+          $crt = Get-ChildItem -Path "$vs\VC\Redist\MSVC" -Recurse -Directory -Filter 'Microsoft.VC*.CRT' |
+                 Where-Object { $_.FullName -match '\\${{ matrix.arch }}\\' } |
+                 Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $crt) { throw "${{ matrix.arch }} MSVC CRT redist not found under $vs" }
+          Write-Host "Copying CRT from $($crt.FullName)"
+          Copy-Item "$($crt.FullName)\*.dll" "${{ env.DIST_DIR }}/bin/" -Force
+          # The redist bootstrapper isn't needed once the DLLs are app-local.
+          Remove-Item "${{ env.DIST_DIR }}/bin/vc_redist.*.exe" -ErrorAction SilentlyContinue
+
+      - name: Upload portable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: EShot-${{ matrix.arch }}
+          path: ${{ env.DIST_DIR }}/bin
+          if-no-files-found: error
+
+      # Build the Inno Setup installer from the assembled dist/bin tree.
+      # ISCC is x86; on the Arm runner it runs under emulation and still
+      # packages the native Arm payload. /F overrides the output basename so
+      # the two arch installers don't collide.
+      - name: Build installer
+        run: |
+          choco install innosetup -y --no-progress
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            "/DReleaseDir=${{ env.DIST_DIR }}\bin" `
+            "/FEShot_Setup_v${{ env.APP_VERSION }}_${{ matrix.arch }}" `
+            EShot_Setup.iss
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: EShot-Setup-${{ matrix.arch }}
+          path: installer_output/*.exe
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - build
+      - linux-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release notes
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Package portable builds
+        shell: bash
+        run: |
+          cd release-assets/EShot-x64
+          zip -r ../EShot-${{ github.ref_name }}-x64-portable.zip .
+          cd ../EShot-arm64
+          zip -r ../EShot-${{ github.ref_name }}-arm64-portable.zip .
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: packaging/release-notes/${{ github.ref_name }}.md
+          files: |
+            release-assets/EShot-Setup-x64/*.exe
+            release-assets/EShot-Setup-arm64/*.exe
+            release-assets/EShot-${{ github.ref_name }}-x64-portable.zip
+            release-assets/EShot-${{ github.ref_name }}-arm64-portable.zip
+            release-assets/EShot-linux-packages/EShot-${{ github.ref_name }}-x86_64.AppImage
+            release-assets/EShot-linux-packages/EShot-${{ github.ref_name }}-linux-x64.tar.gz

@@ -1,0 +1,31 @@
+name: EShot Overlay Windows Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-windows-x64:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt 6.8.2
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.2'
+          arch: win64_msvc2022_64
+          modules: 'qtbase'
+
+      - name: Build EShot x64 Release
+        shell: cmd
+        run: |
+          set QT_DIR=%Qt6_DIR%
+          build.bat
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: EShot-overlay-windows-x64
+          path: dist\bin
