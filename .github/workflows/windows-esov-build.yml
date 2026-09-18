@@ -12,7 +12,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Qt 6.8.2
-        id: qt
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.2'
@@ -20,10 +19,14 @@ jobs:
 
       - name: Build EShot x64 Release
         shell: cmd
-        env:
-          QT_DIR: ${{ steps.qt.outputs.qt-dir }}
         run: |
           mkdir build 2>nul
+          if not defined QT_ROOT_DIR (
+            echo ERROR: QT_ROOT_DIR is not set by install-qt-action.
+            exit /b 1
+          )
+          set QT_DIR=%QT_ROOT_DIR%
+          echo Using QT_DIR=%QT_DIR%
           build.bat > build\build-log.txt 2>&1
 
       - name: Upload build log
