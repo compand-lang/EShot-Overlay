@@ -16,7 +16,6 @@ jobs:
         with:
           version: '6.8.2'
           arch: win64_msvc2022_64
-          modules: 'qtbase'
 
       - name: Build EShot x64 Release
         shell: cmd
