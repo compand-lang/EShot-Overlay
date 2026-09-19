@@ -252,7 +252,9 @@ void OcrDialog::runOcr()
     m_textEdit->clear();
     m_copyBtn->setEnabled(false);
     m_translateBtn->setEnabled(false);
-    m_engine->recognize(m_pixmap, m_languageTag, m_preferredLanguageTag);
+    m_overlayBtn->setEnabled(false);
+    m_lines.clear();
+    m_engine->recognizeWithLayout(m_pixmap, m_languageTag, m_preferredLanguageTag);
 }
 
 void OcrDialog::onLanguageChanged(int index)
