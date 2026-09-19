@@ -59,6 +59,8 @@ private:
     TranslationClient *m_translator = nullptr;
     QVector<OcrTextLine> m_lines;
     QRect m_sourceDisplayRect;
+    int m_ocrSeq = 0;
+    int m_translateSeq = -1;
     QPushButton *m_retryBtn;
     QPushButton *m_closeBtn;
 };

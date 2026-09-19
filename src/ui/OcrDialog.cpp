@@ -248,12 +248,24 @@ void OcrDialog::setBusy(bool busy)
 
 void OcrDialog::runOcr()
 {
+    ++m_ocrSeq;
+    m_translateSeq = -1;
+
+    // Защита от позднего ответа старого OCR/перевода: переподключаем сигналы
+    // только для текущего запроса.
+    disconnect(m_engine, nullptr, this, nullptr);
+    connect(m_engine, &OcrEngine::textReady, this, &OcrDialog::onTextReady);
+    connect(m_engine, &OcrEngine::languageResolved, this, &OcrDialog::onLanguageResolved);
+    connect(m_engine, &OcrEngine::failed, this, &OcrDialog::onOcrFailed);
+    connect(m_engine, &OcrEngine::linesReady, this, &OcrDialog::onLinesReady);
+
     setBusy(true);
     m_textEdit->clear();
     m_copyBtn->setEnabled(false);
     m_translateBtn->setEnabled(false);
     m_overlayBtn->setEnabled(false);
     m_lines.clear();
+    m_statusLabel->setText(QStringLiteral("Распознавание текста (OCR)"));
     m_engine->recognizeWithLayout(m_pixmap, m_languageTag, m_preferredLanguageTag);
 }
 
@@ -351,6 +363,7 @@ void OcrDialog::onOverlayTranslateClicked()
                                       ? TranslationClient::Provider::Yandex
                                       : TranslationClient::Provider::Google);
     }
+    m_translateSeq = m_ocrSeq;
     m_statusLabel->setText(QStringLiteral("Translating..."));
     m_copyBtn->setEnabled(false);
     m_translateBtn->setEnabled(false);
@@ -360,11 +373,16 @@ void OcrDialog::onOverlayTranslateClicked()
 
 void OcrDialog::onTranslationReady(const QVector<OcrTextLine> &lines)
 {
+    if (m_translateSeq != m_ocrSeq) {
+        return; // поздний ответ от старого выделения
+    }
+    m_translateSeq = -1;
     m_statusLabel->setText(QStringLiteral("Translation ready"));
     m_copyBtn->setEnabled(true);
     m_translateBtn->setEnabled(true);
     m_overlayBtn->setEnabled(true);
-    auto *overlay = new TranslatedOverlayDialog(m_pixmap, lines, m_sourceDisplayRect, nullptr);
+    // Оверлей принадлежит окну OCR: при закрытии окна OCR он исчезнет.
+    auto *overlay = new TranslatedOverlayDialog(m_pixmap, lines, m_sourceDisplayRect, this);
     overlay->setAttribute(Qt::WA_DeleteOnClose);
     if (m_sourceDisplayRect.isValid()) {
         overlay->move(m_sourceDisplayRect.topLeft());
@@ -375,6 +393,10 @@ void OcrDialog::onTranslationReady(const QVector<OcrTextLine> &lines)
 
 void OcrDialog::onTranslationFailed(const QString &reason)
 {
+    if (m_translateSeq != m_ocrSeq) {
+        return;
+    }
+    m_translateSeq = -1;
     m_statusLabel->setText(QStringLiteral("Translate failed: ") + reason);
     m_copyBtn->setEnabled(true);
     m_translateBtn->setEnabled(true);
