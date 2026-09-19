@@ -377,6 +377,7 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
     m_proc->setProcessEnvironment(env);
 
     QStringList args;
+    QStringList configArgs;
     if (withLayout) {
         // Tesseract may write TSV to "<outputbase>.tsv" instead of stdout.
         // Use a real temp outputbase, then read/delete the TSV file.
@@ -384,8 +385,8 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
         args << QDir::toNativeSeparators(imagePath)
              << QDir::toNativeSeparators(imagePath)
              << QStringLiteral("-l") << languageArgument
-             << QStringLiteral("--psm") << QStringLiteral("6")
-             << QStringLiteral("tsv");
+             << QStringLiteral("--psm") << QStringLiteral("6");
+        configArgs << QStringLiteral("tsv");
     } else {
         args << QDir::toNativeSeparators(imagePath)
              << QStringLiteral("stdout")
@@ -396,6 +397,9 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
         args << QStringLiteral("--tessdata-dir")
              << QDir::toNativeSeparators(tessdataDirectory);
     }
+    // Config files must go last: some Tesseract builds stop option parsing
+    // after the first config name.
+    args << configArgs;
 
     m_proc->start(tesseractPath(), args);
     if (!m_proc->waitForStarted(10000)) {
