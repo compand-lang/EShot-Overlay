@@ -286,8 +286,10 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
         qWarning() << "[EShot] OCR process error:" << err;
     });
 
+    QString tsvPath;
+
     connect(m_proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, self, imagePath, withLayout](int exitCode, QProcess::ExitStatus status) {
+            this, [this, self, imagePath, withLayout, tsvPath](int exitCode, QProcess::ExitStatus status) {
         if (!self) {
             if (QFile::exists(imagePath)) QFile::remove(imagePath);
             return;
@@ -375,7 +377,6 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
     m_proc->setProcessEnvironment(env);
 
     QStringList args;
-    QString tsvPath;
     if (withLayout) {
         // Tesseract may write TSV to "<outputbase>.tsv" instead of stdout.
         // Use a real temp outputbase, then read/delete the TSV file.
