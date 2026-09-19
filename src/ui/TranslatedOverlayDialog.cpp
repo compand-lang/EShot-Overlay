@@ -25,13 +25,13 @@ TranslatedOverlayDialog::TranslatedOverlayDialog(const QPixmap &source,
     connect(m_imageLabel, &QLabel::customContextMenuRequested, this, [this](const QPoint &pos) {
         QMenu menu(this);
         QAction *copy = menu.addAction(QStringLiteral("Copy translation"));
-        QAction *close = menu.addAction(QStringLiteral("Close"));
+        QAction *closeAction = menu.addAction(QStringLiteral("Close"));
         QAction *chosen = menu.exec(m_imageLabel->mapToGlobal(pos));
         if (chosen == copy) {
             QStringList text;
             for (const OcrTextLine &line : m_lines) text << line.text;
             QGuiApplication::clipboard()->setText(text.join(QLatin1Char('\n')));
-        } else if (chosen == close) {
+        } else if (chosen == closeAction) {
             close();
         }
     });

@@ -319,8 +319,7 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
         // Tesseract TSV: level page/block/par/line/word. Group words into lines.
         QVector<OcrTextLine> lines;
         QMap<QString, OcrTextLine> grouped;
-        const QStringList rows = outText.split(QLatin1Char('
-'));
+        const QStringList rows = outText.split(QLatin1Char('\n'));
         for (const QString &row : rows) {
             const QStringList cols = row.split(QLatin1Char('	'));
             if (cols.size() < 12) continue;
@@ -355,8 +354,7 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
         }
         QStringList textOnly;
         for (const OcrTextLine &line : lines) textOnly << line.text;
-        emit textReady(textOnly.join(QLatin1Char('
-')));
+        emit textReady(textOnly.join(QLatin1Char('\n')));
         emit linesReady(lines);
     });
 

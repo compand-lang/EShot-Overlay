@@ -24,6 +24,8 @@ public:
 
     void recognize(const QPixmap &pixmap, const QString &languageTag = "auto",
                    const QString &preferredLanguageTag = QString());
+    void recognizeWithLayout(const QPixmap &pixmap, const QString &languageTag = "auto",
+                             const QString &preferredLanguageTag = QString());
 
     static QString tesseractPath();
     static QString tessdataDir();
