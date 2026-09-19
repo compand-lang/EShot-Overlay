@@ -18,13 +18,16 @@ jobs:
           $cpp = Get-Content src/core/OcrEngine.cpp -Raw
           $dlg = Get-Content src/ui/TranslatedOverlayDialog.cpp -Raw
           if (-not $h.Contains('recognizeWithLayout')) {
-            throw 'src/core/OcrEngine.h is NOT patched. Replace source files from EShot-4.3.1-overlay-source-fixed.zip.'
+            throw 'src/core/OcrEngine.h is NOT patched.'
           }
           if ($cpp.Contains("QLatin1Char('" + [char]10 + "')")) {
-            throw 'src/core/OcrEngine.cpp still has broken QLatin1Char newline. Replace source files from fixed ZIP.'
+            throw 'src/core/OcrEngine.cpp still has broken QLatin1Char newline.'
+          }
+          if (-not $cpp.Contains('[this, self, imagePath, withLayout]')) {
+            throw 'src/core/OcrEngine.cpp still has old lambda capture. Replace [this, self, imagePath] with [this, self, imagePath, withLayout].'
           }
           if (-not $dlg.Contains('closeAction')) {
-            throw 'src/ui/TranslatedOverlayDialog.cpp is NOT patched. Replace source files from fixed ZIP.'
+            throw 'src/ui/TranslatedOverlayDialog.cpp is NOT patched.'
           }
 
       - name: Install Qt 6.8.2
