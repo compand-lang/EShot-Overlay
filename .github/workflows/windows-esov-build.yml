@@ -28,9 +28,11 @@ jobs:
             Add-Content build\build-log.txt "FAIL: src/core/OcrEngine.cpp still has broken QLatin1Char newline."
             throw 'src/core/OcrEngine.cpp still has broken QLatin1Char newline.'
           }
-          if (-not $cpp.Contains('[this, self, imagePath, withLayout, tsvPath]')) {
-            Add-Content build\build-log.txt "FAIL: OcrEngine.cpp lambda capture is not fixed. Need [this, self, imagePath, withLayout, tsvPath]."
-            throw 'src/core/OcrEngine.cpp lambda capture is not fixed.'
+          $lambdaIdx = $cpp.IndexOf('[this, self, imagePath, withLayout, tsvPath]')
+          $declIdx = $cpp.IndexOf('QString tsvPath;')
+          if ($lambdaIdx -lt 0 -or $declIdx -lt 0 -or $declIdx -gt $lambdaIdx) {
+            Add-Content build\build-log.txt "FAIL: OcrEngine.cpp tsvPath must be declared before the finished lambda. Use fixed6 source."
+            throw 'src/core/OcrEngine.cpp tsvPath declaration/capture is not fixed.'
           }
           if (-not $ocrDlg.Contains('recognizeWithLayout(m_pixmap')) {
             Add-Content build\build-log.txt "FAIL: OcrDialog.cpp still calls recognize() instead of recognizeWithLayout()."
