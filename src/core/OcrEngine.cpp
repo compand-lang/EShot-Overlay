@@ -287,7 +287,7 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
     });
 
     connect(m_proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, self, imagePath](int exitCode, QProcess::ExitStatus status) {
+            this, [this, self, imagePath, withLayout](int exitCode, QProcess::ExitStatus status) {
         if (!self) {
             if (QFile::exists(imagePath)) QFile::remove(imagePath);
             return;
