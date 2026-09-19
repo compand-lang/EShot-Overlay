@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-windows-x64:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
 
@@ -16,15 +16,33 @@ jobs:
         with:
           version: '6.8.2'
           arch: win64_msvc2022_64
-          modules: 'qtbase'
+
+      - name: Setup MSVC x64
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
 
       - name: Build EShot x64 Release
         shell: cmd
         run: |
-          set QT_DIR=%Qt6_DIR%
-          build.bat
+          mkdir build 2>nul
+          if not defined QT_ROOT_DIR (
+            echo ERROR: QT_ROOT_DIR is not set by install-qt-action.
+            exit /b 1
+          )
+          set QT_DIR=%QT_ROOT_DIR%
+          echo Using QT_DIR=%QT_DIR%
+          build.bat > build\build-log.txt 2>&1
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: EShot-build-log
+          path: build/build-log.txt
 
       - name: Upload dist
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: EShot-overlay-windows-x64
