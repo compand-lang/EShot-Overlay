@@ -297,11 +297,36 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
         QString outText = QString::fromUtf8(m_proc->readAllStandardOutput()).trimmed();
         const QString errText = QString::fromUtf8(m_proc->readAllStandardError()).trimmed();
         if (withLayout) {
-            QFile tsv(tsvPath);
-            if (tsv.exists() && tsv.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                outText = QString::fromUtf8(tsv.readAll()).trimmed();
+            QStringList candidates;
+            candidates << tsvPath
+                       << (imagePath + QStringLiteral(".tsv"))
+                       << (QStringLiteral("stdout.tsv"));
+            if (!outText.isEmpty()) {
+                // stdout already has TSV in some builds; nothing to do.
+            } else {
+                for (const QString &candidate : candidates) {
+                    QFile tsv(candidate);
+                    if (tsv.exists() && tsv.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                        outText = QString::fromUtf8(tsv.readAll()).trimmed();
+                        tsv.remove();
+                        break;
+                    }
+                }
             }
-            if (tsv.exists()) tsv.remove();
+            if (outText.isEmpty()) {
+                // Last resort: find the newest temp eshot_ocr_*.tsv and use it.
+                const QString tempDirPath = QFileInfo(imagePath).absolutePath();
+                const QFileInfoList tsvFiles = QDir(tempDirPath).entryInfoList(
+                    QStringList() << QStringLiteral("eshot_ocr_*.tsv"),
+                    QDir::Files, QDir::Time);
+                if (!tsvFiles.isEmpty()) {
+                    QFile tsv(tsvFiles.first().absoluteFilePath());
+                    if (tsv.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                        outText = QString::fromUtf8(tsv.readAll()).trimmed();
+                    }
+                    tsv.remove();
+                }
+            }
         }
         QFile::remove(imagePath);
         m_pendingFiles.remove(imagePath);
@@ -378,12 +403,16 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
 
     QStringList args;
     QStringList configArgs;
+    QString outputBase = imagePath;
+    if (outputBase.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
+        outputBase.chop(4);
+    }
     if (withLayout) {
         // Tesseract may write TSV to "<outputbase>.tsv" instead of stdout.
-        // Use a real temp outputbase, then read/delete the TSV file.
-        tsvPath = imagePath + QStringLiteral(".tsv");
+        // Use an extensionless temp outputbase, then read/delete the TSV file.
+        tsvPath = outputBase + QStringLiteral(".tsv");
         args << QDir::toNativeSeparators(imagePath)
-             << QDir::toNativeSeparators(imagePath)
+             << QDir::toNativeSeparators(outputBase)
              << QStringLiteral("-l") << languageArgument
              << QStringLiteral("--psm") << QStringLiteral("6");
         configArgs << QStringLiteral("tsv");
