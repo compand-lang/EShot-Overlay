@@ -255,7 +255,16 @@ void OcrDialog::runOcr()
     // только для текущего запроса.
     disconnect(m_engine, nullptr, this, nullptr);
     connect(m_engine, &OcrEngine::textReady, this, &OcrDialog::onTextReady);
-    connect(m_engine, &OcrEngine::languageResolved, this, &OcrDialog::onLanguageResolved);
+    connect(m_engine, &OcrEngine::languageResolved, this, [this](const QString &languages) {
+        if (m_languageTag != QStringLiteral("auto"))
+            return;
+        const int automaticIndex = m_langCombo ? m_langCombo->findData(QStringLiteral("auto")) : -1;
+        if (automaticIndex >= 0) {
+            m_langCombo->setItemText(
+                automaticIndex,
+                QStringLiteral("%1 (%2)").arg(TranslationManager::ocrAutomatic(), languages));
+        }
+    });
     connect(m_engine, &OcrEngine::failed, this, &OcrDialog::onOcrFailed);
     connect(m_engine, &OcrEngine::linesReady, this, &OcrDialog::onLinesReady);
 
