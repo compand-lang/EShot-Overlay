@@ -11,6 +11,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify patched sources
+        shell: pwsh
+        run: |
+          $h = Get-Content src/core/OcrEngine.h -Raw
+          $cpp = Get-Content src/core/OcrEngine.cpp -Raw
+          $dlg = Get-Content src/ui/TranslatedOverlayDialog.cpp -Raw
+          if (-not $h.Contains('recognizeWithLayout')) {
+            throw 'src/core/OcrEngine.h is NOT patched. Replace source files from EShot-4.3.1-overlay-source-fixed.zip.'
+          }
+          if ($cpp.Contains("QLatin1Char('" + [char]10 + "')")) {
+            throw 'src/core/OcrEngine.cpp still has broken QLatin1Char newline. Replace source files from fixed ZIP.'
+          }
+          if (-not $dlg.Contains('closeAction')) {
+            throw 'src/ui/TranslatedOverlayDialog.cpp is NOT patched. Replace source files from fixed ZIP.'
+          }
+
       - name: Install Qt 6.8.2
         uses: jurplel/install-qt-action@v4
         with:
