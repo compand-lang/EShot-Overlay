@@ -14,21 +14,33 @@ jobs:
       - name: Verify patched sources
         shell: pwsh
         run: |
+          New-Item -ItemType Directory -Force build | Out-Null
+          Set-Content build\build-log.txt "Verify patched sources..."
           $h = Get-Content src/core/OcrEngine.h -Raw
           $cpp = Get-Content src/core/OcrEngine.cpp -Raw
           $dlg = Get-Content src/ui/TranslatedOverlayDialog.cpp -Raw
+          $ocrDlg = Get-Content src/ui/OcrDialog.cpp -Raw
           if (-not $h.Contains('recognizeWithLayout')) {
+            Add-Content build\build-log.txt "FAIL: src/core/OcrEngine.h is NOT patched."
             throw 'src/core/OcrEngine.h is NOT patched.'
           }
           if ($cpp.Contains("QLatin1Char('" + [char]10 + "')")) {
+            Add-Content build\build-log.txt "FAIL: src/core/OcrEngine.cpp still has broken QLatin1Char newline."
             throw 'src/core/OcrEngine.cpp still has broken QLatin1Char newline.'
           }
-          if (-not $cpp.Contains('[this, self, imagePath, withLayout]')) {
-            throw 'src/core/OcrEngine.cpp still has old lambda capture. Replace [this, self, imagePath] with [this, self, imagePath, withLayout].'
+          if (-not $cpp.Contains('[this, self, imagePath, withLayout, tsvPath]')) {
+            Add-Content build\build-log.txt "FAIL: OcrEngine.cpp lambda capture is not fixed. Need [this, self, imagePath, withLayout, tsvPath]."
+            throw 'src/core/OcrEngine.cpp lambda capture is not fixed.'
+          }
+          if (-not $ocrDlg.Contains('recognizeWithLayout(m_pixmap')) {
+            Add-Content build\build-log.txt "FAIL: OcrDialog.cpp still calls recognize() instead of recognizeWithLayout()."
+            throw 'src/ui/OcrDialog.cpp still calls recognize() instead of recognizeWithLayout().'
           }
           if (-not $dlg.Contains('closeAction')) {
+            Add-Content build\build-log.txt "FAIL: TranslatedOverlayDialog.cpp is NOT patched."
             throw 'src/ui/TranslatedOverlayDialog.cpp is NOT patched.'
           }
+          Add-Content build\build-log.txt "OK: source patch markers found."
 
       - name: Install Qt 6.8.2
         uses: jurplel/install-qt-action@v4
