@@ -292,8 +292,15 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
             if (QFile::exists(imagePath)) QFile::remove(imagePath);
             return;
         }
-        const QString outText = QString::fromUtf8(m_proc->readAllStandardOutput()).trimmed();
+        QString outText = QString::fromUtf8(m_proc->readAllStandardOutput()).trimmed();
         const QString errText = QString::fromUtf8(m_proc->readAllStandardError()).trimmed();
+        if (withLayout) {
+            QFile tsv(tsvPath);
+            if (tsv.exists() && tsv.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                outText = QString::fromUtf8(tsv.readAll()).trimmed();
+            }
+            if (tsv.exists()) tsv.remove();
+        }
         QFile::remove(imagePath);
         m_pendingFiles.remove(imagePath);
         m_proc->deleteLater();
@@ -307,7 +314,11 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
             return;
         }
         if (outText.isEmpty()) {
-            emit failed(QStringLiteral("No text recognized"));
+            if (!errText.isEmpty()) {
+                emit failed(QStringLiteral("Tesseract: ") + errText.left(400));
+            } else {
+                emit failed(QStringLiteral("No text recognized"));
+            }
             return;
         }
 
@@ -332,8 +343,8 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
             const QString word = cols.at(11);
             if (!okLeft || !okTop || !okWidth || !okHeight || word.trimmed().isEmpty()) continue;
 
-            const QString key = QStringLiteral("%1|%2|%3|%4|%5")
-                .arg(cols.at(1), cols.at(2), cols.at(3), cols.at(4), cols.at(5));
+            const QString key = QStringLiteral("%1|%2|%3|%4")
+                .arg(cols.at(1), cols.at(2), cols.at(3), cols.at(4));
             OcrTextLine &line = grouped[key];
             if (line.rect.isNull()) line.rect = QRect(left, top, width, height);
             else line.rect = line.rect.united(QRect(left, top, width, height));
@@ -364,11 +375,22 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
     m_proc->setProcessEnvironment(env);
 
     QStringList args;
-    args << QDir::toNativeSeparators(imagePath)
-         << QStringLiteral("stdout")
-         << QStringLiteral("-l") << languageArgument
-         << QStringLiteral("--psm") << QStringLiteral("6");
-    if (withLayout) args << QStringLiteral("tsv");
+    QString tsvPath;
+    if (withLayout) {
+        // Tesseract may write TSV to "<outputbase>.tsv" instead of stdout.
+        // Use a real temp outputbase, then read/delete the TSV file.
+        tsvPath = imagePath + QStringLiteral(".tsv");
+        args << QDir::toNativeSeparators(imagePath)
+             << QDir::toNativeSeparators(imagePath)
+             << QStringLiteral("-l") << languageArgument
+             << QStringLiteral("--psm") << QStringLiteral("6")
+             << QStringLiteral("tsv");
+    } else {
+        args << QDir::toNativeSeparators(imagePath)
+             << QStringLiteral("stdout")
+             << QStringLiteral("-l") << languageArgument
+             << QStringLiteral("--psm") << QStringLiteral("6");
+    }
     if (!tessdataDirectory.isEmpty()) {
         args << QStringLiteral("--tessdata-dir")
              << QDir::toNativeSeparators(tessdataDirectory);
