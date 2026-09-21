@@ -560,10 +560,6 @@ QString TranslationClient::parseCustomReply(const QByteArray &body, QString *err
             *error = QStringLiteral("Custom: %1").arg(detail);
             return QString();
         }
-    } else if (doc.isString()) {
-        const QString text = doc.toVariant().toString().trimmed();
-        if (!text.isEmpty())
-            return text;
     }
     *error = QStringLiteral("Custom: unrecognized response shape");
     return QString();
