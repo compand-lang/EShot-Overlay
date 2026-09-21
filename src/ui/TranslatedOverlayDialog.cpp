@@ -9,11 +9,14 @@
 #include <QAction>
 #include <QDebug>
 
+QSet<TranslatedOverlayDialog *> TranslatedOverlayDialog::s_liveOverlays;
+
 TranslatedOverlayDialog::TranslatedOverlayDialog(const QPixmap &source,
                                                  const QVector<OcrTextLine> &translatedLines,
                                                  const QRect &targetDisplayRect,
                                                  QWidget *parent)
     : QDialog(parent), m_source(source), m_lines(translatedLines), m_targetDisplayRect(targetDisplayRect) {
+    s_liveOverlays.insert(this);
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
     setAttribute(Qt::WA_DeleteOnClose, false); // parent owns lifetime unless explicitly set by caller
     setModal(false);
@@ -40,6 +43,18 @@ TranslatedOverlayDialog::TranslatedOverlayDialog(const QPixmap &source,
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_imageLabel);
     resize(m_imageLabel->pixmap().size());
+}
+
+TranslatedOverlayDialog::~TranslatedOverlayDialog() {
+    s_liveOverlays.remove(this);
+}
+
+void TranslatedOverlayDialog::closeAll() {
+    const QSet<TranslatedOverlayDialog *> live = s_liveOverlays;
+    for (TranslatedOverlayDialog *overlay : live) {
+        if (overlay)
+            overlay->close();
+    }
 }
 
 void TranslatedOverlayDialog::keyPressEvent(QKeyEvent *event) {

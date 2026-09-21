@@ -358,6 +358,24 @@ if(BUILD_TESTING)
     target_link_libraries(eshot_settings_translation_tests PRIVATE Qt6::Core Qt6::Test)
     add_test(NAME settings_translation COMMAND eshot_settings_translation_tests)
 
+    qt_add_executable(eshot_translation_client_tests
+        tests/TranslationClientTests.cpp
+        src/core/TranslationClient.cpp
+        src/core/TranslationClient.h
+    )
+    target_include_directories(eshot_translation_client_tests PRIVATE src)
+    target_link_libraries(eshot_translation_client_tests PRIVATE Qt6::Core Qt6::Gui Qt6::Network Qt6::Test)
+    add_test(NAME translation_client COMMAND eshot_translation_client_tests)
+
+    qt_add_executable(eshot_translated_overlay_dialog_tests
+        tests/TranslatedOverlayDialogTests.cpp
+        src/ui/TranslatedOverlayDialog.cpp
+        src/ui/TranslatedOverlayDialog.h
+    )
+    target_include_directories(eshot_translated_overlay_dialog_tests PRIVATE src)
+    target_link_libraries(eshot_translated_overlay_dialog_tests PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Test)
+    add_test(NAME translated_overlay_dialog COMMAND eshot_translated_overlay_dialog_tests)
+
     qt_add_executable(eshot_capture_geometry_tests
         tests/CaptureGeometryTests.cpp
         src/capture/CaptureGeometry.cpp

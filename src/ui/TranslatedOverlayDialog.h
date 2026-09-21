@@ -6,6 +6,7 @@
 #include <QVector>
 #include <QPixmap>
 #include <QRect>
+#include <QSet>
 
 class QLabel;
 
@@ -16,6 +17,11 @@ public:
                             const QVector<OcrTextLine> &translatedLines,
                             const QRect &targetDisplayRect = QRect(),
                             QWidget *parent = nullptr);
+    ~TranslatedOverlayDialog() override;
+
+    // Закрывает все живые overlay-окна (например, перед новым OCR или новым переводом),
+    // чтобы старый перевод не оставался поверх экрана.
+    static void closeAll();
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
@@ -27,6 +33,8 @@ private:
     QVector<OcrTextLine> m_lines;
     QRect m_targetDisplayRect;
     QLabel *m_imageLabel = nullptr;
+
+    static QSet<TranslatedOverlayDialog *> s_liveOverlays;
 };
 
 #endif

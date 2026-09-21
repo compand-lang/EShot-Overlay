@@ -83,17 +83,21 @@ OcrDialog::OcrDialog(const QPixmap &pixmap, const QRect &sourceDisplayRect, QWid
     auto *translationRow = new QHBoxLayout();
     QLabel *providerLabel = new QLabel(QStringLiteral("Translator:"), this);
     m_providerCombo = new QComboBox(this);
-    m_providerCombo->addItem(QStringLiteral("Google"), QStringLiteral("google"));
-    m_providerCombo->addItem(QStringLiteral("Yandex"), QStringLiteral("yandex"));
+    for (const QString &id : TranslationClient::providerIds()) {
+        m_providerCombo->addItem(
+            TranslationClient::providerDisplayName(
+                TranslationClient::providerFromId(id)),
+            id);
+    }
     QSettings translationSettings(QStringLiteral("EShot"), QStringLiteral("EShot"));
-    const QString provider = translationSettings.value(QStringLiteral("translation/provider"), QStringLiteral("google")).toString();
+    const QString provider = translationSettings.value(QStringLiteral("translation/provider"),
+                                                       QStringLiteral("google_free")).toString();
     const int providerIdx = m_providerCombo->findData(provider);
     if (providerIdx >= 0) m_providerCombo->setCurrentIndex(providerIdx);
     connect(m_providerCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
         if (m_translator && index >= 0) {
-            m_translator->setProvider(m_providerCombo->itemData(index).toString() == QStringLiteral("yandex")
-                                          ? TranslationClient::Provider::Yandex
-                                          : TranslationClient::Provider::Google);
+            m_translator->setProvider(TranslationClient::providerFromId(
+                m_providerCombo->itemData(index).toString()));
         }
     });
     translationRow->addWidget(providerLabel);
@@ -250,6 +254,8 @@ void OcrDialog::runOcr()
 {
     ++m_ocrSeq;
     m_translateSeq = -1;
+    // Старый overlay относится к прежнему распознаванию — не показывать его поверх нового.
+    TranslatedOverlayDialog::closeAll();
 
     // Защита от позднего ответа старого OCR/перевода: переподключаем сигналы
     // только для текущего запроса.
@@ -368,9 +374,8 @@ void OcrDialog::onOverlayTranslateClicked()
         return;
     }
     if (m_providerCombo) {
-        m_translator->setProvider(m_providerCombo->currentData().toString() == QStringLiteral("yandex")
-                                      ? TranslationClient::Provider::Yandex
-                                      : TranslationClient::Provider::Google);
+        m_translator->setProvider(TranslationClient::providerFromId(
+            m_providerCombo->currentData().toString()));
     }
     m_translateSeq = m_ocrSeq;
     m_statusLabel->setText(QStringLiteral("Translating..."));
@@ -390,7 +395,8 @@ void OcrDialog::onTranslationReady(const QVector<OcrTextLine> &lines)
     m_copyBtn->setEnabled(true);
     m_translateBtn->setEnabled(true);
     m_overlayBtn->setEnabled(true);
-    // Оверлей принадлежит окну OCR: при закрытии окна OCR он исчезнет.
+    // Оверлей принадлежит окну OCR; перед показом нового закрываем прежние.
+    TranslatedOverlayDialog::closeAll();
     auto *overlay = new TranslatedOverlayDialog(m_pixmap, lines, m_sourceDisplayRect, this);
     overlay->setAttribute(Qt::WA_DeleteOnClose);
     if (m_sourceDisplayRect.isValid()) {

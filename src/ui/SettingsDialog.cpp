@@ -8,6 +8,7 @@
 #include "../core/LinuxGnomeShortcutInstaller.h"
 #include "../core/OcrEngine.h"
 #include "../core/TranslationManager.h"
+#include "../core/TranslationClient.h"
 #include "../recording/LinuxRecordingSupport.h"
 #include "../recording/RecordingSettingsPolicy.h"
 #ifdef Q_OS_LINUX
@@ -720,6 +721,62 @@ QWidget* SettingsDialog::createGeneralTab()
     langLayout->addWidget(m_langCombo);
     langLayout->addStretch();
     layout->addWidget(langGroup);
+
+    // Translation provider (screen OCR overlay)
+    QGroupBox *translationGroup = new QGroupBox(QStringLiteral("Translation (OCR overlay)"));
+    QFormLayout *translationLayout = new QFormLayout(translationGroup);
+
+    m_translationProviderCombo = new QComboBox(translationGroup);
+    for (const QString &id : TranslationClient::providerIds()) {
+        m_translationProviderCombo->addItem(
+            TranslationClient::providerDisplayName(TranslationClient::providerFromId(id)), id);
+    }
+    translationLayout->addRow(QStringLiteral("Provider:"), m_translationProviderCombo);
+
+    m_translationTargetCombo = new QComboBox(translationGroup);
+    const QPair<const char *, const char *> translationTargets[] = {
+        {"Russian", "ru"},   {"English", "en"}, {"Turkish", "tr"},
+        {"German", "de"},    {"French", "fr"},  {"Spanish", "es"},
+        {"Japanese", "ja"},  {"Chinese", "zh"},
+    };
+    for (const auto &target : translationTargets)
+        m_translationTargetCombo->addItem(QString::fromLatin1(target.first),
+                                          QString::fromLatin1(target.second));
+    translationLayout->addRow(QStringLiteral("Target language:"), m_translationTargetCombo);
+
+    auto makeSecretEdit = [translationGroup](const QString &placeholder) {
+        QLineEdit *edit = new QLineEdit(translationGroup);
+        edit->setEchoMode(QLineEdit::Password);
+        edit->setPlaceholderText(placeholder);
+        return edit;
+    };
+    m_translationDeepLKeyEdit = makeSecretEdit(QStringLiteral("DeepL API key"));
+    translationLayout->addRow(QStringLiteral("DeepL API key:"), m_translationDeepLKeyEdit);
+
+    m_translationLibreUrlEdit = new QLineEdit(translationGroup);
+    m_translationLibreUrlEdit->setPlaceholderText(QStringLiteral("http://localhost:5000"));
+    translationLayout->addRow(QStringLiteral("LibreTranslate URL:"), m_translationLibreUrlEdit);
+    m_translationLibreKeyEdit = makeSecretEdit(QStringLiteral("optional API key"));
+    translationLayout->addRow(QStringLiteral("LibreTranslate API key:"), m_translationLibreKeyEdit);
+
+    m_translationCustomUrlEdit = new QLineEdit(translationGroup);
+    m_translationCustomUrlEdit->setPlaceholderText(
+        QStringLiteral("https://api.example.com/v1/chat/completions"));
+    translationLayout->addRow(QStringLiteral("Custom endpoint URL:"), m_translationCustomUrlEdit);
+    m_translationCustomKeyEdit = makeSecretEdit(QStringLiteral("optional Bearer token"));
+    translationLayout->addRow(QStringLiteral("Custom API key:"), m_translationCustomKeyEdit);
+
+    QLabel *translationHint = new QLabel(
+        QStringLiteral("Free Google/Yandex endpoints are unofficial and may stop working. "
+                       "Keys are stored locally in app settings."),
+        translationGroup);
+    translationHint->setWordWrap(true);
+    translationHint->setStyleSheet(QStringLiteral("color: #999; font-size: 11px;"));
+    translationLayout->addRow(translationHint);
+
+    connect(m_translationProviderCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &SettingsDialog::onTranslationProviderChanged);
+    layout->addWidget(translationGroup);
 
     // Save directory
     QGroupBox *pathGroup = new QGroupBox(TranslationManager::saveDir());
@@ -2032,6 +2089,23 @@ void SettingsDialog::onDeleteSelectedOcr()
     refreshPackageStatus();
 }
 
+void SettingsDialog::onTranslationProviderChanged()
+{
+    if (!m_translationProviderCombo)
+        return;
+    auto *form = qobject_cast<QFormLayout *>(m_translationProviderCombo->parentWidget()
+                                                 ? m_translationProviderCombo->parentWidget()->layout()
+                                                 : nullptr);
+    if (!form)
+        return;
+    const QString id = m_translationProviderCombo->currentData().toString();
+    form->setRowVisible(m_translationDeepLKeyEdit, id == QStringLiteral("deepl_api"));
+    form->setRowVisible(m_translationLibreUrlEdit, id == QStringLiteral("libretranslate"));
+    form->setRowVisible(m_translationLibreKeyEdit, id == QStringLiteral("libretranslate"));
+    form->setRowVisible(m_translationCustomUrlEdit, id == QStringLiteral("custom_url"));
+    form->setRowVisible(m_translationCustomKeyEdit, id == QStringLiteral("custom_url"));
+}
+
 void SettingsDialog::loadSettings()
 {
     QString defPath = defaultSaveDirectory();
@@ -2085,6 +2159,34 @@ void SettingsDialog::loadSettings()
     QString lang = (langInt >= 0 && langInt <= 7) ? langCodes[langInt] : "en";
     int li = m_langCombo->findData(lang);
     if (li >= 0) m_langCombo->setCurrentIndex(li);
+
+    if (m_translationProviderCombo) {
+        const QString providerId = m_settings->value("translation/provider",
+                                                     QStringLiteral("google_free")).toString();
+        int pi = m_translationProviderCombo->findData(providerId);
+        if (pi < 0) pi = 0;
+        const QSignalBlocker blocker(m_translationProviderCombo);
+        m_translationProviderCombo->setCurrentIndex(pi);
+        onTranslationProviderChanged();
+    }
+    if (m_translationTargetCombo) {
+        const QString target = m_settings->value("translation/targetLanguage",
+                                                 QStringLiteral("ru")).toString();
+        int ti = m_translationTargetCombo->findData(target);
+        if (ti < 0 && target.size() >= 2)
+            ti = m_translationTargetCombo->findData(target.left(2));
+        if (ti >= 0) m_translationTargetCombo->setCurrentIndex(ti);
+    }
+    if (m_translationDeepLKeyEdit)
+        m_translationDeepLKeyEdit->setText(m_settings->value("translation/deeplApiKey").toString());
+    if (m_translationLibreUrlEdit)
+        m_translationLibreUrlEdit->setText(m_settings->value("translation/libreUrl").toString());
+    if (m_translationLibreKeyEdit)
+        m_translationLibreKeyEdit->setText(m_settings->value("translation/libreApiKey").toString());
+    if (m_translationCustomUrlEdit)
+        m_translationCustomUrlEdit->setText(m_settings->value("translation/customUrl").toString());
+    if (m_translationCustomKeyEdit)
+        m_translationCustomKeyEdit->setText(m_settings->value("translation/customApiKey").toString());
 
     QString fmt = m_settings->value("imageFormat", "PNG").toString();
     int fi = m_formatCombo->findData(fmt);
@@ -2570,6 +2672,22 @@ void SettingsDialog::onSave()
     m_settings->setValue("filenamePattern",    m_filenamePatternEdit->text());
     m_settings->setValue("autoStart",          m_autoStartCheck->isChecked());
     m_settings->setValue("showNotifications",  m_showNotificationsCheck->isChecked());
+    if (m_translationProviderCombo)
+        m_settings->setValue("translation/provider",
+                             m_translationProviderCombo->currentData().toString());
+    if (m_translationTargetCombo)
+        m_settings->setValue("translation/targetLanguage",
+                             m_translationTargetCombo->currentData().toString());
+    if (m_translationDeepLKeyEdit)
+        m_settings->setValue("translation/deeplApiKey", m_translationDeepLKeyEdit->text().trimmed());
+    if (m_translationLibreUrlEdit)
+        m_settings->setValue("translation/libreUrl", m_translationLibreUrlEdit->text().trimmed());
+    if (m_translationLibreKeyEdit)
+        m_settings->setValue("translation/libreApiKey", m_translationLibreKeyEdit->text().trimmed());
+    if (m_translationCustomUrlEdit)
+        m_settings->setValue("translation/customUrl", m_translationCustomUrlEdit->text().trimmed());
+    if (m_translationCustomKeyEdit)
+        m_settings->setValue("translation/customApiKey", m_translationCustomKeyEdit->text().trimmed());
     if (m_notifyCopyCheck) m_settings->setValue("notifyCopy", m_notifyCopyCheck->isChecked());
     if (m_notifySaveCheck) m_settings->setValue("notifySave", m_notifySaveCheck->isChecked());
     if (m_notifyGifCheck) m_settings->setValue("notifyGif", m_notifyGifCheck->isChecked());
@@ -2708,6 +2826,20 @@ void SettingsDialog::onExportSettings()
 
     QJsonObject obj;
     obj["language"] = m_langCombo->currentData().toString();
+    if (m_translationProviderCombo)
+        obj["translationProvider"] = m_translationProviderCombo->currentData().toString();
+    if (m_translationTargetCombo)
+        obj["translationTargetLanguage"] = m_translationTargetCombo->currentData().toString();
+    if (m_translationDeepLKeyEdit)
+        obj["translationDeepLApiKey"] = m_translationDeepLKeyEdit->text();
+    if (m_translationLibreUrlEdit)
+        obj["translationLibreUrl"] = m_translationLibreUrlEdit->text();
+    if (m_translationLibreKeyEdit)
+        obj["translationLibreApiKey"] = m_translationLibreKeyEdit->text();
+    if (m_translationCustomUrlEdit)
+        obj["translationCustomUrl"] = m_translationCustomUrlEdit->text();
+    if (m_translationCustomKeyEdit)
+        obj["translationCustomApiKey"] = m_translationCustomKeyEdit->text();
     obj["savePath"] = m_savePathEdit->text();
     obj["screenshotSavePath"] = m_screenshotPathEdit ? m_screenshotPathEdit->text() : QString();
     obj["gifSavePath"] = m_gifPathEdit ? m_gifPathEdit->text() : QString();
@@ -2844,6 +2976,24 @@ void SettingsDialog::onImportSettings()
         int li = m_langCombo->findData(obj["language"].toString());
         if (li >= 0) m_langCombo->setCurrentIndex(li);
     }
+    if (m_translationProviderCombo && obj.contains("translationProvider")) {
+        int pi = m_translationProviderCombo->findData(obj["translationProvider"].toString());
+        if (pi >= 0) m_translationProviderCombo->setCurrentIndex(pi);
+    }
+    if (m_translationTargetCombo && obj.contains("translationTargetLanguage")) {
+        int ti = m_translationTargetCombo->findData(obj["translationTargetLanguage"].toString());
+        if (ti >= 0) m_translationTargetCombo->setCurrentIndex(ti);
+    }
+    if (m_translationDeepLKeyEdit && obj.contains("translationDeepLApiKey"))
+        m_translationDeepLKeyEdit->setText(obj["translationDeepLApiKey"].toString());
+    if (m_translationLibreUrlEdit && obj.contains("translationLibreUrl"))
+        m_translationLibreUrlEdit->setText(obj["translationLibreUrl"].toString());
+    if (m_translationLibreKeyEdit && obj.contains("translationLibreApiKey"))
+        m_translationLibreKeyEdit->setText(obj["translationLibreApiKey"].toString());
+    if (m_translationCustomUrlEdit && obj.contains("translationCustomUrl"))
+        m_translationCustomUrlEdit->setText(obj["translationCustomUrl"].toString());
+    if (m_translationCustomKeyEdit && obj.contains("translationCustomApiKey"))
+        m_translationCustomKeyEdit->setText(obj["translationCustomApiKey"].toString());
     if (obj.contains("savePath")) m_savePathEdit->setText(obj["savePath"].toString());
     if (m_screenshotPathEdit && obj.contains("screenshotSavePath")) m_screenshotPathEdit->setText(obj["screenshotSavePath"].toString());
     if (m_gifPathEdit && obj.contains("gifSavePath")) m_gifPathEdit->setText(obj["gifSavePath"].toString());
