@@ -84,6 +84,7 @@ private:
     QString parseReplyFor(Provider provider, const QByteArray &body, QString *error) const;
     void handleFailure(const QString &reason); // fallback Yandex→Google, затем fail()
     void fail(const QString &reason);
+    void scheduleNext(int delayMs, int generation); // отложенный startNext() с защитой generation
 
     QNetworkAccessManager m_net;
     Provider m_provider = Provider::GoogleFree;
@@ -97,6 +98,7 @@ private:
     bool m_running = false;
     bool m_fallbackUsed = false;
     int m_generation = 0;
+    int m_retryCount = 0; // повторные попытки текущей строки при 429/5xx
 };
 
 #endif

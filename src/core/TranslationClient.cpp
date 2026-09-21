@@ -14,6 +14,7 @@
 #include <QTextStream>
 #include <QDateTime>
 #include <QVariant>
+#include <QTimer>
 #include <QDebug>
 
 namespace {
@@ -187,6 +188,7 @@ void TranslationClient::translateLines(const QVector<OcrTextLine> &lines) {
     m_next = 0;
     m_running = true;
     m_fallbackUsed = false;
+    m_retryCount = 0;
     m_runProvider = m_provider;
     ++m_generation;
     debugLog(QStringLiteral("start provider=%1 target=%2 lines=%3")
@@ -384,6 +386,24 @@ void TranslationClient::onReplyFinished(QNetworkReply *reply, int generation) {
                  .arg(QString::fromUtf8(body.left(600))));
 
     if (reply->error() != QNetworkReply::NoError) {
+        const int httpCode = status.isValid() ? status.toInt() : 0;
+        // 429/5xx — временная ошибка: ждём (Retry-After, если есть) и повторяем строку.
+        if ((httpCode == 429 || httpCode >= 500) && m_retryCount < 2) {
+            ++m_retryCount;
+            int delaySec = 3;
+            bool ok = false;
+            const int retryAfter = reply->rawHeader("Retry-After").toInt(&ok);
+            if (ok && retryAfter > 0)
+                delaySec = qBound(1, retryAfter, 15);
+            debugLog(QStringLiteral("retry %1/%2 in %3s (HTTP %4) line=%5")
+                         .arg(m_retryCount)
+                         .arg(2)
+                         .arg(delaySec)
+                         .arg(httpCode)
+                         .arg(m_next));
+            scheduleNext(delaySec * 1000, generation);
+            return;
+        }
         // Честное сообщение: код/тело ответа, если они есть.
         QString reason = reply->errorString();
         if (status.isValid())
@@ -404,7 +424,21 @@ void TranslationClient::onReplyFinished(QNetworkReply *reply, int generation) {
     if (m_next >= 0 && m_next < m_output.size())
         m_output[m_next].text = translated;
     ++m_next;
-    startNext();
+    m_retryCount = 0;
+    if (m_next < m_input.size()) {
+        // Небольшая пауза между строками, чтобы не ловить 429 от бесплатных endpoint'ов.
+        scheduleNext(150, generation);
+    } else {
+        startNext();
+    }
+}
+
+void TranslationClient::scheduleNext(int delayMs, int generation) {
+    QTimer::singleShot(delayMs, this, [this, generation]() {
+        if (generation != m_generation || !m_running)
+            return;
+        startNext();
+    });
 }
 
 void TranslationClient::handleFailure(const QString &reason) {
