@@ -7,6 +7,8 @@
 #include <QMessageBox>
 #include <QGuiApplication>
 #include <QScreen>
+#include <QPointer>
+#include <QTimer>
 #include <QDebug>
 
 OcrTranslateController::OcrTranslateController(const QPixmap &pixmap,
@@ -85,16 +87,28 @@ void OcrTranslateController::hideStatus() {
 
 void OcrTranslateController::showOverlay(const QVector<OcrTextLine> &lines) {
     hideStatus();
-    // overlay живёт сам по себе; закрывается Esc/правый клик и не блокирует захват.
     TranslatedOverlayDialog::closeAll();
+    // Сначала восстанавливаем UI захвата (он поднимается и перехватывает фокус),
+    // затем показываем overlay и поднимаем его ПОВЕРХ — иначе полноэкранное окно
+    // захвата перекрывает overlay, а Esc уходит в захват, а не в overlay.
+    emit finished();
     auto *overlay = new TranslatedOverlayDialog(m_pixmap, lines, m_sourceDisplayRect, nullptr);
+    QPointer<TranslatedOverlayDialog> overlayGuard(overlay);
     overlay->setAttribute(Qt::WA_DeleteOnClose, true);
     if (m_sourceDisplayRect.isValid()) {
         overlay->move(m_sourceDisplayRect.topLeft());
         overlay->resize(m_sourceDisplayRect.size());
     }
     overlay->show();
-    complete();
+    // restoreAfterModalDialog делает raise()+захват фокуса через singleShot(0);
+    // поднимаем overlay позже, чтобы оказаться выше окна захвата.
+    QTimer::singleShot(150, overlay, [overlayGuard]() {
+        if (overlayGuard) {
+            overlayGuard->raise();
+            overlayGuard->activateWindow();
+        }
+    });
+    deleteLater();
 }
 
 void OcrTranslateController::finishWithError(const QString &message) {

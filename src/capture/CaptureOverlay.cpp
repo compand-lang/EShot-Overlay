@@ -9,6 +9,7 @@
 #include "ui/OverlayPanelStyle.h"
 #include "ui/OcrDialog.h"
 #include "ui/OcrTranslateController.h"
+#include "ui/TranslatedOverlayDialog.h"
 #include "ui/UploadDialog.h"
 #include "core/ImageUploader.h"
 #include "core/DebouncedSettingsWriter.h"
@@ -3535,6 +3536,7 @@ void CaptureOverlay::finishCapture()
     if (shouldComposeCaptureResult(recordingMode))
         result = getSelectedPixmap();
     hide();
+    TranslatedOverlayDialog::closeAll(); // overlay перевода не должен переживать сценарий захвата
     m_selectionComplete = false;
     m_isSelecting = false;
     m_selectionAnchorScreenRect = QRect();
@@ -3568,6 +3570,7 @@ void CaptureOverlay::finishCapture()
 void CaptureOverlay::cancelCapture()
 {
     hide();
+    TranslatedOverlayDialog::closeAll(); // иначе «призрак» overlay остаётся на экране
     m_selectionComplete = false;
     m_isSelecting = false;
     m_selectionAnchorScreenRect = QRect();
