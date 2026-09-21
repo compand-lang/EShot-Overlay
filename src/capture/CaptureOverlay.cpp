@@ -8,6 +8,7 @@
 #include "ui/AnnotationToolbar.h"
 #include "ui/OverlayPanelStyle.h"
 #include "ui/OcrDialog.h"
+#include "ui/OcrTranslateController.h"
 #include "ui/UploadDialog.h"
 #include "core/ImageUploader.h"
 #include "core/DebouncedSettingsWriter.h"
@@ -777,6 +778,7 @@ CaptureOverlay::CaptureOverlay(QWidget *parent)
     connect(m_toolbar, &AnnotationToolbar::eyedropperRequested, this, &CaptureOverlay::onEyedropperRequested);
     connect(m_toolbar, &AnnotationToolbar::lockToggled, this, &CaptureOverlay::onSelectionLockToggled);
     connect(m_toolbar, &AnnotationToolbar::ocrRequested, this, &CaptureOverlay::onOcrRequested);
+    connect(m_toolbar, &AnnotationToolbar::ocrTranslateRequested, this, &CaptureOverlay::onOcrTranslateRequested);
     connect(m_toolbar, &AnnotationToolbar::uploadRequested, this, &CaptureOverlay::onUploadRequested);
     connect(m_toolbar, &AnnotationToolbar::googleLensRequested, this, &CaptureOverlay::onGoogleLensRequested);
     connect(m_toolbar, &AnnotationToolbar::gifRequested, this, &CaptureOverlay::onGifRequested);
@@ -3836,6 +3838,19 @@ void CaptureOverlay::onOcrRequested()
     dlg.setLanguageTag(lang);
     dlg.exec();
     restoreAfterModalDialog();
+}
+
+void CaptureOverlay::onOcrTranslateRequested()
+{
+    QPixmap pix = getSelectedPixmap();
+    if (pix.isNull()) return;
+    hide();
+    // Без окна OCR: распознаём, переводим и показываем overlay поверх выделения.
+    auto *task = new OcrTranslateController(pix, selectedDisplayRect(), this);
+    connect(task, &OcrTranslateController::finished, this, [this]() {
+        restoreAfterModalDialog();
+    });
+    task->start();
 }
 
 void CaptureOverlay::onUploadRequested()

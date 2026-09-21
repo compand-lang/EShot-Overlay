@@ -28,7 +28,6 @@ private slots:
     void onTextReady(const QString &text);
     void onOcrFailed(const QString &reason);
     void onCopyClicked();
-    void onTranslateClicked();
     void onOverlayTranslateClicked();
     void onRetryClicked();
     void onLanguageChanged(int index);
@@ -43,6 +42,8 @@ private:
     void populateLanguages();
     bool isLanguageInstalled(const QString &tag) const;
     int firstInstalledLanguageIndex() const;
+    // Перевод распознанного текста прямо в нижней части окна (без внешнего сайта).
+    void startInPlaceTranslation();
 
     QPixmap m_pixmap;
     OcrEngine *m_engine;
@@ -52,8 +53,8 @@ private:
     QComboBox *m_langCombo;
     QLabel *m_statusLabel;
     QTextEdit *m_textEdit;
+    QTextEdit *m_translatedEdit;
     QPushButton *m_copyBtn;
-    QPushButton *m_translateBtn;
     QPushButton *m_overlayBtn;
     QComboBox *m_providerCombo = nullptr;
     TranslationClient *m_translator = nullptr;
@@ -61,6 +62,7 @@ private:
     QRect m_sourceDisplayRect;
     int m_ocrSeq = 0;
     int m_translateSeq = -1;
+    bool m_wantOverlay = false; // overlay создаём только по кнопке, а не при авто-переводе
     QPushButton *m_retryBtn;
     QPushButton *m_closeBtn;
 };

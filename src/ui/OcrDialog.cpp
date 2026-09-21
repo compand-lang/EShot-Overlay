@@ -8,10 +8,6 @@
 #include <QHBoxLayout>
 #include <QGuiApplication>
 #include <QClipboard>
-#include <QDesktopServices>
-#include <QUrl>
-#include <QUrlQuery>
-#include <QMessageBox>
 #include <QDebug>
 #include <QSettings>
 #include <QDir>
@@ -75,10 +71,17 @@ OcrDialog::OcrDialog(const QPixmap &pixmap, const QRect &sourceDisplayRect, QWid
     m_statusLabel = new QLabel(TranslationManager::ocrProcessing(), this);
     layout->addWidget(m_statusLabel);
 
+    // Верхняя часть: распознанный текст.
     m_textEdit = new QTextEdit(this);
     m_textEdit->setReadOnly(true);
     m_textEdit->setPlaceholderText(TranslationManager::ocrEmpty());
     layout->addWidget(m_textEdit, 1);
+
+    // Нижняя часть: перевод прямо в окне (без открытия внешнего сайта).
+    m_translatedEdit = new QTextEdit(this);
+    m_translatedEdit->setReadOnly(true);
+    m_translatedEdit->setPlaceholderText(QStringLiteral("Перевод появится здесь"));
+    layout->addWidget(m_translatedEdit, 1);
 
     auto *translationRow = new QHBoxLayout();
     QLabel *providerLabel = new QLabel(QStringLiteral("Translator:"), this);
@@ -98,6 +101,9 @@ OcrDialog::OcrDialog(const QPixmap &pixmap, const QRect &sourceDisplayRect, QWid
         if (m_translator && index >= 0) {
             m_translator->setProvider(TranslationClient::providerFromId(
                 m_providerCombo->itemData(index).toString()));
+            // Провайдер сменили — обновляем перевод в нижней части окна.
+            if (m_textEdit && !m_textEdit->toPlainText().trimmed().isEmpty())
+                startInPlaceTranslation();
         }
     });
     translationRow->addWidget(providerLabel);
@@ -112,24 +118,18 @@ OcrDialog::OcrDialog(const QPixmap &pixmap, const QRect &sourceDisplayRect, QWid
     auto *btnRow = new QHBoxLayout();
     m_copyBtn = new QPushButton(TranslationManager::ocrCopy(), this);
     m_copyBtn->setEnabled(false);
-    m_translateBtn = new QPushButton(TranslationManager::tr("ocrTranslate"), this);
-    m_translateBtn->setIcon(QIcon(QStringLiteral(":/icons/external_link.svg")));
-    m_translateBtn->setIconSize(QSize(16, 16));
-    m_translateBtn->setToolTip(TranslationManager::tr("ocrTranslate"));
-    m_translateBtn->setEnabled(false);
     m_overlayBtn = new QPushButton(QStringLiteral("Overlay translate"), this);
     m_overlayBtn->setEnabled(false);
     m_retryBtn = new QPushButton(TranslationManager::ocrRetry(), this);
     m_retryBtn->setEnabled(false);
     m_closeBtn = new QPushButton(TranslationManager::ocrClose(), this);
-    const QList<QPushButton *> actionButtons = {m_copyBtn, m_translateBtn, m_overlayBtn, m_retryBtn, m_closeBtn};
+    const QList<QPushButton *> actionButtons = {m_copyBtn, m_overlayBtn, m_retryBtn, m_closeBtn};
     for (QPushButton *button : actionButtons) {
         button->setFixedHeight(30);
         button->setStyleSheet(QStringLiteral("QPushButton { padding: 0 10px; }"));
     }
 
     btnRow->addWidget(m_copyBtn);
-    btnRow->addWidget(m_translateBtn);
     btnRow->addWidget(m_overlayBtn);
     btnRow->addWidget(m_retryBtn);
     btnRow->addStretch();
@@ -137,7 +137,6 @@ OcrDialog::OcrDialog(const QPixmap &pixmap, const QRect &sourceDisplayRect, QWid
     layout->addLayout(btnRow);
 
     connect(m_copyBtn, &QPushButton::clicked, this, &OcrDialog::onCopyClicked);
-    connect(m_translateBtn, &QPushButton::clicked, this, &OcrDialog::onTranslateClicked);
     connect(m_overlayBtn, &QPushButton::clicked, this, &OcrDialog::onOverlayTranslateClicked);
     connect(m_retryBtn, &QPushButton::clicked, this, &OcrDialog::onRetryClicked);
     connect(m_closeBtn, &QPushButton::clicked, this, &QDialog::accept);
@@ -237,7 +236,6 @@ void OcrDialog::translateUi()
 {
     setWindowTitle(TranslationManager::ocrTitle());
     m_copyBtn->setText(TranslationManager::ocrCopy());
-    m_translateBtn->setText(TranslationManager::tr("ocrTranslate"));
     m_closeBtn->setText(TranslationManager::ocrClose());
 }
 
@@ -254,6 +252,7 @@ void OcrDialog::runOcr()
 {
     ++m_ocrSeq;
     m_translateSeq = -1;
+    m_wantOverlay = false;
     // Старый overlay относится к прежнему распознаванию — не показывать его поверх нового.
     TranslatedOverlayDialog::closeAll();
 
@@ -276,8 +275,8 @@ void OcrDialog::runOcr()
 
     setBusy(true);
     m_textEdit->clear();
+    m_translatedEdit->clear();
     m_copyBtn->setEnabled(false);
-    m_translateBtn->setEnabled(false);
     m_overlayBtn->setEnabled(false);
     m_lines.clear();
     m_statusLabel->setText(QStringLiteral("Распознавание текста (OCR)"));
@@ -310,16 +309,41 @@ void OcrDialog::onTextReady(const QString &text)
     if (text.trimmed().isEmpty()) {
         m_statusLabel->setText(TranslationManager::ocrEmpty());
         m_textEdit->clear();
+        m_translatedEdit->clear();
         m_copyBtn->setEnabled(false);
-        m_translateBtn->setEnabled(false);
         m_overlayBtn->setEnabled(false);
     } else {
         m_statusLabel->setText(TranslationManager::ocrTitle());
         m_textEdit->setPlainText(text);
         m_copyBtn->setEnabled(true);
-        m_translateBtn->setEnabled(true);
         if (!m_lines.isEmpty()) m_overlayBtn->setEnabled(true);
+        // Перевод сразу в нижней части окна.
+        startInPlaceTranslation();
     }
+}
+
+void OcrDialog::startInPlaceTranslation()
+{
+    if (!m_translator || m_textEdit->toPlainText().trimmed().isEmpty())
+        return;
+    if (m_translateSeq == m_ocrSeq) {
+        return; // перевод уже выполняется для текущего OCR
+    }
+    QVector<OcrTextLine> input = m_lines;
+    if (input.isEmpty()) {
+        // Нет layout — переводим весь текст одной строкой.
+        OcrTextLine whole;
+        whole.rect = QRect(0, 0, m_pixmap.width(), m_pixmap.height());
+        whole.text = m_textEdit->toPlainText();
+        input << whole;
+    }
+    if (m_providerCombo) {
+        m_translator->setProvider(TranslationClient::providerFromId(
+            m_providerCombo->currentData().toString()));
+    }
+    m_translateSeq = m_ocrSeq;
+    m_statusLabel->setText(QStringLiteral("Перевод..."));
+    m_translator->translateLines(input);
 }
 
 void OcrDialog::onOcrFailed(const QString &reason)
@@ -327,8 +351,8 @@ void OcrDialog::onOcrFailed(const QString &reason)
     setBusy(false);
     m_statusLabel->setText(TranslationManager::ocrFailed() + QStringLiteral(" - ") + reason);
     m_textEdit->clear();
+    m_translatedEdit->clear();
     m_copyBtn->setEnabled(false);
-    m_translateBtn->setEnabled(false);
     m_overlayBtn->setEnabled(false);
     m_retryBtn->setEnabled(true);
     qWarning() << "[EShot] OCR failed:" << reason;
@@ -338,25 +362,6 @@ void OcrDialog::onCopyClicked()
 {
     QGuiApplication::clipboard()->setText(m_textEdit->toPlainText());
     m_statusLabel->setText(TranslationManager::ocrCopied());
-}
-
-void OcrDialog::onTranslateClicked()
-{
-    const QString text = m_textEdit->toPlainText().trimmed();
-    if (text.isEmpty())
-        return;
-
-    QUrl url(QStringLiteral("https://translate.google.com/"));
-    QUrlQuery query;
-    query.addQueryItem(QStringLiteral("sl"), QStringLiteral("auto"));
-    query.addQueryItem(QStringLiteral("tl"), TranslationManager::langCode());
-    query.addQueryItem(QStringLiteral("text"), text);
-    query.addQueryItem(QStringLiteral("op"), QStringLiteral("translate"));
-    url.setQuery(query);
-    if (!QDesktopServices::openUrl(url)) {
-        QMessageBox::warning(this, TranslationManager::tr("visualSearchBrowserLaunchTitle"),
-                             TranslationManager::tr("ocrTranslateBrowserError"));
-    }
 }
 
 void OcrDialog::onLinesReady(const QVector<OcrTextLine> &lines)
@@ -377,10 +382,9 @@ void OcrDialog::onOverlayTranslateClicked()
         m_translator->setProvider(TranslationClient::providerFromId(
             m_providerCombo->currentData().toString()));
     }
+    m_wantOverlay = true;
     m_translateSeq = m_ocrSeq;
     m_statusLabel->setText(QStringLiteral("Translating..."));
-    m_copyBtn->setEnabled(false);
-    m_translateBtn->setEnabled(false);
     m_overlayBtn->setEnabled(false);
     m_translator->translateLines(m_lines);
 }
@@ -392,18 +396,27 @@ void OcrDialog::onTranslationReady(const QVector<OcrTextLine> &lines)
     }
     m_translateSeq = -1;
     m_statusLabel->setText(QStringLiteral("Translation ready"));
-    m_copyBtn->setEnabled(true);
-    m_translateBtn->setEnabled(true);
-    m_overlayBtn->setEnabled(true);
-    // Оверлей принадлежит окну OCR; перед показом нового закрываем прежние.
-    TranslatedOverlayDialog::closeAll();
-    auto *overlay = new TranslatedOverlayDialog(m_pixmap, lines, m_sourceDisplayRect, this);
-    overlay->setAttribute(Qt::WA_DeleteOnClose);
-    if (m_sourceDisplayRect.isValid()) {
-        overlay->move(m_sourceDisplayRect.topLeft());
-        overlay->resize(m_sourceDisplayRect.size());
+    m_overlayBtn->setEnabled(!m_lines.isEmpty());
+
+    // Перевод — в нижней части окна.
+    QStringList translated;
+    for (const OcrTextLine &line : lines) {
+        if (!line.text.trimmed().isEmpty()) translated << line.text;
     }
-    overlay->show();
+    m_translatedEdit->setPlainText(translated.join(QLatin1Char('\n')));
+
+    // Overlay поверх выделения — только если его явно запросили кнопкой.
+    if (m_wantOverlay) {
+        m_wantOverlay = false;
+        TranslatedOverlayDialog::closeAll();
+        auto *overlay = new TranslatedOverlayDialog(m_pixmap, lines, m_sourceDisplayRect, this);
+        overlay->setAttribute(Qt::WA_DeleteOnClose);
+        if (m_sourceDisplayRect.isValid()) {
+            overlay->move(m_sourceDisplayRect.topLeft());
+            overlay->resize(m_sourceDisplayRect.size());
+        }
+        overlay->show();
+    }
 }
 
 void OcrDialog::onTranslationFailed(const QString &reason)
@@ -412,9 +425,9 @@ void OcrDialog::onTranslationFailed(const QString &reason)
         return;
     }
     m_translateSeq = -1;
+    m_wantOverlay = false;
     m_statusLabel->setText(QStringLiteral("Translate failed: ") + reason);
-    m_copyBtn->setEnabled(true);
-    m_translateBtn->setEnabled(true);
+    m_translatedEdit->setPlainText(QStringLiteral("Ошибка перевода: ") + reason);
     m_overlayBtn->setEnabled(!m_lines.isEmpty());
 }
 

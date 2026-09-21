@@ -103,14 +103,14 @@ QPixmap TranslatedOverlayDialog::renderOverlay() const {
         if (text.isEmpty()) continue;
 
         QFont font = p.font();
-        int size = qMax(8, qMin(r.height() - 4, 24));
+        int size = qMax(11, qMin(r.height() - 4, 32));
         font.setPointSize(size);
         p.setFont(font);
         p.setPen(QColor(20, 20, 20));
 
         QRectF textRect = p.boundingRect(r.adjusted(4, 2, -4, -2), Qt::TextWordWrap, text);
         if (textRect.height() > r.height() - 4 || textRect.width() > r.width() - 8) {
-            for (int s = size; s >= 7; --s) {
+            for (int s = size; s >= 10; --s) {
                 font.setPointSize(s);
                 p.setFont(font);
                 textRect = p.boundingRect(r.adjusted(4, 2, -4, -2), Qt::TextWordWrap, text);

@@ -42,6 +42,7 @@ signals:
     void eyedropperRequested();
     void lockToggled(bool locked);
     void ocrRequested();
+    void ocrTranslateRequested();
     void uploadRequested();
     void googleLensRequested();
     void gifRequested();
@@ -104,6 +105,7 @@ private:
 
     // OCR and upload
     QPushButton *m_ocrButton;
+    QPushButton *m_ocrTranslateButton;
     QPushButton *m_uploadButton;
     QPushButton *m_lensButton;
     QPushButton *m_gifButton;

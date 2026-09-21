@@ -310,6 +310,7 @@ private slots:
     void onSelectionLockToggled(bool locked);
     void onBlurIntensityChanged(int intensity);
     void onOcrRequested();
+    void onOcrTranslateRequested();
     void onUploadRequested();
     void onGoogleLensRequested();
     void onGifRequested();

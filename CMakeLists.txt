@@ -75,6 +75,7 @@ set(SOURCES
     src/ui/ControlCenterDialog.cpp
     src/ui/FirstRunWizard.cpp
     src/ui/OcrDialog.cpp
+    src/ui/OcrTranslateController.cpp
     src/ui/TranslatedOverlayDialog.cpp
     src/ui/UploadDialog.cpp
     src/recording/GifEncoder.cpp
@@ -138,6 +139,7 @@ set(HEADERS
     src/ui/ControlCenterDialog.h
     src/ui/FirstRunWizard.h
     src/ui/OcrDialog.h
+    src/ui/OcrTranslateController.h
     src/ui/TranslatedOverlayDialog.h
     src/ui/UploadDialog.h
     src/recording/GifEncoder.h

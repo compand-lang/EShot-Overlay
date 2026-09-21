@@ -93,7 +93,7 @@ QStringList defaultAnnotationTools()
 
 QStringList defaultToolbarControls()
 {
-    return {"Color","Eyedropper","Lock","BlurIntensity","Undo","Redo","Ocr","Upload","GoogleLens","Gif","Video"};
+    return {"Color","Eyedropper","Lock","BlurIntensity","Undo","Redo","Ocr","OcrTranslate","Upload","GoogleLens","Gif","Video"};
 }
 
 struct OverlayShortcutDef {
@@ -1383,6 +1383,7 @@ QWidget* SettingsDialog::createInterfaceTab()
         {"Undo",          TranslationManager::toolUndo(),                     ":/icons/undo.svg"},
         {"Redo",          TranslationManager::toolRedo(),                     ":/icons/redo.svg"},
         {"Ocr",           TranslationManager::actionOcr(),                    ":/icons/ocr.svg"},
+        {"OcrTranslate",  QStringLiteral("Перевод текста (OCR overlay)"),   ":/icons/translate.svg"},
         {"Upload",        TranslationManager::uploadToService(),              ":/icons/upload.svg"},
         {"GoogleLens",    TranslationManager::visualSearchAction(),           ":/icons/search.svg"},
         {"Gif",           TranslationManager::recordingStartTitle(),          ":/icons/gif.svg"},

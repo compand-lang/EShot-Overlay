@@ -66,6 +66,7 @@ AnnotationToolbar::AnnotationToolbar(QWidget *parent)
     , m_undoButton(nullptr)
     , m_redoButton(nullptr)
     , m_ocrButton(nullptr)
+    , m_ocrTranslateButton(nullptr)
     , m_uploadButton(nullptr)
     , m_lensButton(nullptr)
 {
@@ -441,6 +442,14 @@ void AnnotationToolbar::setupUI()
     m_optionalControls["Ocr"] = m_ocrButton;
     m_layout->addWidget(m_ocrButton);
 
+    // OCR + translate straight to overlay (no OCR dialog)
+    m_ocrTranslateButton = createActionButton(
+        QStringLiteral(":/icons/translate.svg"),
+        QStringLiteral("Перевести текст (OCR overlay)"),
+        QStringLiteral("ocrTranslate"));
+    m_optionalControls["OcrTranslate"] = m_ocrTranslateButton;
+    m_layout->addWidget(m_ocrTranslateButton);
+
     m_uploadButton = new QPushButton(this);
     m_uploadButton->setIcon(QIcon(":/icons/upload.svg"));
     m_uploadButton->setIconSize(QSize(18, 18));
@@ -670,6 +679,7 @@ void AnnotationToolbar::onActionButtonClicked()
     if (action == "undo") emit undoRequested();
     else if (action == "redo") emit redoRequested();
     else if (action == "ocr") emit ocrRequested();
+    else if (action == "ocrTranslate") emit ocrTranslateRequested();
     else if (action == "upload") emit uploadRequested();
     else if (action == "lens") emit googleLensRequested();
     else if (action == "gif") emit gifRequested();
