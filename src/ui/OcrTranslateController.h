@@ -23,7 +23,7 @@ public:
     };
 
     OcrTranslateController(const QPixmap &pixmap, const QRect &sourceDisplayRect,
-                           Mode mode = Mode::Translate, QObject *parent = nullptr);
+                           QObject *parent = nullptr, Mode mode = Mode::Translate);
 
     void start();
 

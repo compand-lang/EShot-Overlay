@@ -351,6 +351,7 @@ public:
     static QString ocrNoText()        { return tr("ocrNoText"); }
     static QString ocrAutomatic()     { return tr("ocrAutomatic"); }
     static QString ocrLanguagePackMissing() { return tr("ocrLanguagePackMissing"); }
+    static QString ocrTranslate()     { return tr("ocrTranslate"); }
 
     // ─── Translator ───
     static QString translatorTitle()   { return tr("translatorTitle"); }

@@ -3835,8 +3835,8 @@ void CaptureOverlay::onOcrRequested()
     if (pix.isNull()) return;
     hide();
     // Без окна OCR: распознаём и показываем overlay с распознанным текстом.
-    auto *task = new OcrTranslateController(pix, selectedDisplayRect(),
-                                            OcrTranslateController::Mode::TextOnly, this);
+    auto *task = new OcrTranslateController(pix, selectedDisplayRect(), this,
+                                            OcrTranslateController::Mode::TextOnly);
     connect(task, &OcrTranslateController::finished, this, [this]() {
         restoreAfterModalDialog();
     });
