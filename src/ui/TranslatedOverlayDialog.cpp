@@ -27,7 +27,7 @@ TranslatedOverlayDialog::TranslatedOverlayDialog(const QPixmap &source,
     m_imageLabel->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_imageLabel, &QLabel::customContextMenuRequested, this, [this](const QPoint &pos) {
         QMenu menu(this);
-        QAction *copy = menu.addAction(QStringLiteral("Copy translation"));
+        QAction *copy = menu.addAction(QStringLiteral("Copy text"));
         QAction *closeAction = menu.addAction(QStringLiteral("Close"));
         QAction *chosen = menu.exec(m_imageLabel->mapToGlobal(pos));
         if (chosen == copy) {
@@ -97,7 +97,7 @@ QPixmap TranslatedOverlayDialog::renderOverlay() const {
         r = r.intersected(QRect(0, 0, out.width(), out.height()));
         if (r.isEmpty()) continue;
 
-        p.fillRect(r, QColor(255, 255, 255, 235));
+        p.fillRect(r, QColor(28, 28, 28, 204));
 
         QString text = line.text.trimmed();
         if (text.isEmpty()) continue;
@@ -105,8 +105,9 @@ QPixmap TranslatedOverlayDialog::renderOverlay() const {
         QFont font = p.font();
         int size = qMax(11, qMin(r.height() - 4, 32));
         font.setPointSize(size);
+        font.setBold(true);
         p.setFont(font);
-        p.setPen(QColor(20, 20, 20));
+        p.setPen(QColor(245, 245, 245));
 
         QRectF textRect = p.boundingRect(r.adjusted(4, 2, -4, -2), Qt::TextWordWrap, text);
         if (textRect.height() > r.height() - 4 || textRect.width() > r.width() - 8) {

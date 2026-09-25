@@ -19,7 +19,7 @@ jobs:
           $h = Get-Content src/core/OcrEngine.h -Raw
           $cpp = Get-Content src/core/OcrEngine.cpp -Raw
           $dlg = Get-Content src/ui/TranslatedOverlayDialog.cpp -Raw
-          $ocrDlg = Get-Content src/ui/OcrDialog.cpp -Raw
+          $cap = Get-Content src/capture/CaptureOverlay.cpp -Raw
           if (-not $h.Contains('recognizeWithLayout')) {
             Add-Content build\build-log.txt "FAIL: src/core/OcrEngine.h is NOT patched."
             throw 'src/core/OcrEngine.h is NOT patched.'
@@ -34,9 +34,13 @@ jobs:
             Add-Content build\build-log.txt "FAIL: OcrEngine.cpp tsvPath must be declared before the finished lambda. Use fixed6 source."
             throw 'src/core/OcrEngine.cpp tsvPath declaration/capture is not fixed.'
           }
-          if (-not $ocrDlg.Contains('recognizeWithLayout(m_pixmap')) {
-            Add-Content build\build-log.txt "FAIL: OcrDialog.cpp still calls recognize() instead of recognizeWithLayout()."
-            throw 'src/ui/OcrDialog.cpp still calls recognize() instead of recognizeWithLayout().'
+          if ($cap.Contains('ui/OcrDialog.h')) {
+            Add-Content build\build-log.txt "FAIL: CaptureOverlay.cpp still includes removed ui/OcrDialog.h."
+            throw 'src/capture/CaptureOverlay.cpp still includes ui/OcrDialog.h.'
+          }
+          if (-not (Test-Path src/ui/TranslatorDialog.cpp)) {
+            Add-Content build\build-log.txt "FAIL: src/ui/TranslatorDialog.cpp is missing."
+            throw 'src/ui/TranslatorDialog.cpp is missing.'
           }
           if (-not $dlg.Contains('closeAction')) {
             Add-Content build\build-log.txt "FAIL: TranslatedOverlayDialog.cpp is NOT patched."

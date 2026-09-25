@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(EShot VERSION 4.3.1 LANGUAGES CXX)
+project(EShot VERSION 4.3.2 LANGUAGES CXX)
 
 include(CTest)
 
@@ -74,9 +74,9 @@ set(SOURCES
     src/ui/AboutDialog.cpp
     src/ui/ControlCenterDialog.cpp
     src/ui/FirstRunWizard.cpp
-    src/ui/OcrDialog.cpp
     src/ui/OcrTranslateController.cpp
     src/ui/TranslatedOverlayDialog.cpp
+    src/ui/TranslatorDialog.cpp
     src/ui/UploadDialog.cpp
     src/recording/GifEncoder.cpp
     src/recording/LinuxRecordingSupport.cpp
@@ -138,9 +138,9 @@ set(HEADERS
     src/ui/AboutDialog.h
     src/ui/ControlCenterDialog.h
     src/ui/FirstRunWizard.h
-    src/ui/OcrDialog.h
     src/ui/OcrTranslateController.h
     src/ui/TranslatedOverlayDialog.h
+    src/ui/TranslatorDialog.h
     src/ui/UploadDialog.h
     src/recording/GifEncoder.h
     src/recording/LinuxRecordingSupport.h

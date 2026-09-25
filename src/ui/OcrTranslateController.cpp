@@ -13,8 +13,8 @@
 
 OcrTranslateController::OcrTranslateController(const QPixmap &pixmap,
                                                const QRect &sourceDisplayRect,
-                                               QObject *parent)
-    : QObject(parent), m_pixmap(pixmap), m_sourceDisplayRect(sourceDisplayRect) {}
+                                               Mode mode, QObject *parent)
+    : QObject(parent), m_pixmap(pixmap), m_sourceDisplayRect(sourceDisplayRect), m_mode(mode) {}
 
 void OcrTranslateController::start() {
     if (m_pixmap.isNull()) {
@@ -47,6 +47,10 @@ void OcrTranslateController::start() {
             return;
         }
         m_lines = lines;
+        if (m_mode == Mode::TextOnly) {
+            showOverlay(m_lines);
+            return;
+        }
         m_translationStarted = true;
         showStatus(QStringLiteral("Перевод..."));
         m_translator->translateLines(m_lines);
@@ -114,8 +118,10 @@ void OcrTranslateController::showOverlay(const QVector<OcrTextLine> &lines) {
 void OcrTranslateController::finishWithError(const QString &message) {
     hideStatus();
     qWarning() << "[EShot] OCR translate failed:" << message;
-    QMessageBox::warning(nullptr, QStringLiteral("Перевод текста (OCR)"),
-                         message.left(400));
+    const QString title = (m_mode == Mode::TextOnly)
+        ? QStringLiteral("Распознавание текста (OCR)")
+        : QStringLiteral("Перевод текста (OCR)");
+    QMessageBox::warning(nullptr, title, message.left(400));
     complete();
 }
 

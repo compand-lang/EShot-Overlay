@@ -1538,6 +1538,7 @@ QWidget* SettingsDialog::createHotkeyTab()
     m_instantCaptureHotkeyEdit = makeRecordingHotkeyEdit();
     m_gifCaptureHotkeyEdit = makeRecordingHotkeyEdit();
     m_videoCaptureHotkeyEdit = makeRecordingHotkeyEdit();
+    m_translatorHotkeyEdit = makeRecordingHotkeyEdit();
 #ifdef Q_OS_WIN
     m_windowCaptureHotkeyEdit = makeRecordingHotkeyEdit();
 #endif
@@ -1551,6 +1552,8 @@ QWidget* SettingsDialog::createHotkeyTab()
     actionHotkeyLayout->addRow(uiLabel("Instant bolge:", "Instant region:"), m_instantCaptureHotkeyEdit);
     actionHotkeyLayout->addRow(QStringLiteral("GIF:"), m_gifCaptureHotkeyEdit);
     actionHotkeyLayout->addRow(uiLabel("Video:", "Video:"), m_videoCaptureHotkeyEdit);
+    m_translatorHotkeyEdit->setToolTip(uiLabel("Bos birakilirsa kapali kalir. Cevirmen penceresini acar.", "Leave empty to disable. Opens the translator window."));
+    actionHotkeyLayout->addRow(uiLabel("Cevirmen:", "Translator:"), m_translatorHotkeyEdit);
     gl->addWidget(actionGroup);
 
     QGroupBox *recordingGroup = new QGroupBox(TranslationManager::videoRecordingTitle());
@@ -2331,6 +2334,10 @@ void SettingsDialog::loadSettings()
         m_windowCaptureHotkeyEdit->setKeySequence(win32ToKeySequence(
             static_cast<UINT>(m_settings->value("windowCaptureHotkeyModifiers", defaultWindowCaptureModifiers()).toUInt()),
             static_cast<UINT>(m_settings->value("windowCaptureHotkeyVKey", defaultWindowCaptureVirtualKey()).toUInt())));
+    if (m_translatorHotkeyEdit)
+        m_translatorHotkeyEdit->setKeySequence(win32ToKeySequence(
+            static_cast<UINT>(m_settings->value("translatorHotkeyModifiers", 0).toUInt()),
+            static_cast<UINT>(m_settings->value("translatorHotkeyVKey", 0).toUInt())));
     for (const auto &def : overlayShortcutDefaults()) {
         if (QKeySequenceEdit *edit = m_overlayHotkeyEdits.value(def.key, nullptr)) {
             edit->setKeySequence(QKeySequence(m_settings->value(QStringLiteral("overlayShortcut/%1").arg(def.key),
@@ -2614,10 +2621,12 @@ void SettingsDialog::onSave()
     UINT gifMod = 0, gifVKey = 0;
     UINT videoMod = 0, videoVKey = 0;
     UINT windowMod = 0, windowVKey = 0;
+    UINT translatorMod = 0, translatorVKey = 0;
     if (!optionalHotkey(m_instantCaptureHotkeyEdit, instantMod, instantVKey) ||
         !optionalHotkey(m_gifCaptureHotkeyEdit, gifMod, gifVKey) ||
         !optionalHotkey(m_videoCaptureHotkeyEdit, videoMod, videoVKey) ||
-        !optionalHotkey(m_windowCaptureHotkeyEdit, windowMod, windowVKey)) {
+        !optionalHotkey(m_windowCaptureHotkeyEdit, windowMod, windowVKey) ||
+        !optionalHotkey(m_translatorHotkeyEdit, translatorMod, translatorVKey)) {
         QMessageBox::warning(this, TranslationManager::errInvalidHotkeyTitle(), TranslationManager::errInvalidHotkey());
         return;
     }
@@ -2633,10 +2642,13 @@ void SettingsDialog::onSave()
                                static_cast<quint32>(m_settings->value("videoCaptureHotkeyVKey", 0).toUInt())}) ||
         settingsHotkeyChanged({windowMod, windowVKey},
                               {static_cast<quint32>(m_settings->value("windowCaptureHotkeyModifiers", defaultWindowCaptureModifiers()).toUInt()),
-                               static_cast<quint32>(m_settings->value("windowCaptureHotkeyVKey", defaultWindowCaptureVirtualKey()).toUInt())});
+                               static_cast<quint32>(m_settings->value("windowCaptureHotkeyVKey", defaultWindowCaptureVirtualKey()).toUInt())}) ||
+        settingsHotkeyChanged({translatorMod, translatorVKey},
+                              {static_cast<quint32>(m_settings->value("translatorHotkeyModifiers", 0).toUInt()),
+                               static_cast<quint32>(m_settings->value("translatorHotkeyVKey", 0).toUInt())});
     if (actionHotkeysChanged && !HotkeyManager::instance().reRegisterActionHotkeys(
             instantMod, instantVKey, gifMod, gifVKey, videoMod, videoVKey,
-            windowMod, windowVKey)) {
+            windowMod, windowVKey, translatorMod, translatorVKey)) {
         QMessageBox::warning(
             this,
             TranslationManager::errInvalidHotkeyTitle(),
@@ -2763,6 +2775,8 @@ void SettingsDialog::onSave()
     m_settings->setValue("videoCaptureHotkeyVKey",        videoVKey);
     m_settings->setValue("windowCaptureHotkeyModifiers", windowMod);
     m_settings->setValue("windowCaptureHotkeyVKey",      windowVKey);
+    m_settings->setValue("translatorHotkeyModifiers",    translatorMod);
+    m_settings->setValue("translatorHotkeyVKey",         translatorVKey);
     for (auto it = m_overlayHotkeyEdits.constBegin(); it != m_overlayHotkeyEdits.constEnd(); ++it) {
         if (it.value())
             m_settings->setValue(QStringLiteral("overlayShortcut/%1").arg(it.key()),
@@ -2906,6 +2920,7 @@ void SettingsDialog::onExportSettings()
     appendHotkey("gifCaptureHotkeyModifiers", "gifCaptureHotkeyVKey", m_gifCaptureHotkeyEdit);
     appendHotkey("videoCaptureHotkeyModifiers", "videoCaptureHotkeyVKey", m_videoCaptureHotkeyEdit);
     appendHotkey("windowCaptureHotkeyModifiers", "windowCaptureHotkeyVKey", m_windowCaptureHotkeyEdit);
+    appendHotkey("translatorHotkeyModifiers", "translatorHotkeyVKey", m_translatorHotkeyEdit);
     obj["uploadProvider"] = m_settings->value("uploadProvider", 0).toInt();
     QJsonObject overlayShortcuts;
     for (auto it = m_overlayHotkeyEdits.constBegin(); it != m_overlayHotkeyEdits.constEnd(); ++it) {
@@ -3079,6 +3094,7 @@ void SettingsDialog::onImportSettings()
     importHotkey("gifCaptureHotkeyModifiers", "gifCaptureHotkeyVKey", m_gifCaptureHotkeyEdit);
     importHotkey("videoCaptureHotkeyModifiers", "videoCaptureHotkeyVKey", m_videoCaptureHotkeyEdit);
     importHotkey("windowCaptureHotkeyModifiers", "windowCaptureHotkeyVKey", m_windowCaptureHotkeyEdit);
+    importHotkey("translatorHotkeyModifiers", "translatorHotkeyVKey", m_translatorHotkeyEdit);
     if (obj.contains("uploadProvider"))
         m_settings->setValue("uploadProvider", obj["uploadProvider"].toInt());
     if (obj.contains("overlayShortcuts") && obj["overlayShortcuts"].isObject()) {

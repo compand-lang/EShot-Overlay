@@ -7,7 +7,6 @@
 #include "annotation/AnnotationRotationGeometry.h"
 #include "ui/AnnotationToolbar.h"
 #include "ui/OverlayPanelStyle.h"
-#include "ui/OcrDialog.h"
 #include "ui/OcrTranslateController.h"
 #include "ui/TranslatedOverlayDialog.h"
 #include "ui/UploadDialog.h"
@@ -3834,13 +3833,14 @@ void CaptureOverlay::onOcrRequested()
 {
     QPixmap pix = getSelectedPixmap();
     if (pix.isNull()) return;
-    QSettings s("EShot", "EShot");
-    QString lang = s.value("ocrLanguage", "en-US").toString();
     hide();
-    OcrDialog dlg(pix, selectedDisplayRect());
-    dlg.setLanguageTag(lang);
-    dlg.exec();
-    restoreAfterModalDialog();
+    // Без окна OCR: распознаём и показываем overlay с распознанным текстом.
+    auto *task = new OcrTranslateController(pix, selectedDisplayRect(),
+                                            OcrTranslateController::Mode::TextOnly, this);
+    connect(task, &OcrTranslateController::finished, this, [this]() {
+        restoreAfterModalDialog();
+    });
+    task->start();
 }
 
 void CaptureOverlay::onOcrTranslateRequested()

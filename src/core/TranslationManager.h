@@ -352,6 +352,15 @@ public:
     static QString ocrAutomatic()     { return tr("ocrAutomatic"); }
     static QString ocrLanguagePackMissing() { return tr("ocrLanguagePackMissing"); }
 
+    // ─── Translator ───
+    static QString translatorTitle()   { return tr("translatorTitle"); }
+    static QString translatorSource()  { return tr("translatorSource"); }
+    static QString translatorResult()  { return tr("translatorResult"); }
+    static QString translatorProvider(){ return tr("translatorProvider"); }
+    static QString translatorAutoHint(){ return tr("translatorAutoHint"); }
+    static QString trayTranslator()    { return tr("trayTranslator"); }
+    static QString hotkeyTranslator()  { return tr("hotkeyTranslator"); }
+
     // ─── Kayıt (Recording) ───
     static QString recordingStart()   { return tr("recordingStart"); }
     static QString recordingStop()    { return tr("recordingStop"); }
@@ -732,6 +741,15 @@ private:
         {"ocrNoText",      {"Metin algılanmadı", "No text detected", "Kein Text erkannt", "Aucun texte détecté", "No se detectó texto", "テキストが検出されませんでした", "未检测到文字", "Текст не обнаружен"}},
         {"ocrAutomatic",   {"Otomatik", "Automatic", "Automatisch", "Automatique", "Automático", "自動", "自动", "Автоматически"}},
         {"ocrLanguagePackMissing",{"Dil paketi yuklu degil", "Language pack is not installed", "Sprachpaket ist nicht installiert", "Le module de langue n'est pas installe", "El paquete de idioma no esta instalado", "Language pack is not installed", "Language pack is not installed", "Language pack is not installed"}},
+
+        // ─── Translator ───
+        {"translatorTitle", {"Çevirmen", "Translator", "Übersetzer", "Traducteur", "Traductor", "翻訳", "翻译", "Переводчик"}},
+        {"translatorSource", {"Kaynak metin", "Source text", "Quelltext", "Texte source", "Texto original", "原文", "原文", "Исходный текст"}},
+        {"translatorResult", {"Çeviri", "Translation", "Übersetzung", "Traduction", "Traducción", "翻訳", "翻译", "Перевод"}},
+        {"translatorProvider", {"Servis", "Service", "Dienst", "Service", "Servicio", "サービス", "服务", "Сервис"}},
+        {"translatorAutoHint", {"Metin yazarken otomatik çevrilir", "Text is translated automatically as you type", "Text wird beim Tippen automatisch übersetzt", "Le texte est traduit automatiquement pendant la saisie", "El texto se traduce automáticamente al escribir", "入力と同時に自動翻訳されます", "输入时自动翻译", "Текст переводится автоматически при вводе"}},
+        {"trayTranslator", {"Çevirmen...", "Translator...", "Übersetzer...", "Traducteur...", "Traductor...", "翻訳...", "翻译...", "Переводчик..."}},
+        {"hotkeyTranslator", {"Çevirmen", "Translator", "Übersetzer", "Traducteur", "Traductor", "翻訳", "翻译", "Переводчик"}},
 
         // ─── Kayıt (Recording) ───
         {"recordingStart", {"Kaydı Başlat", "Start Recording", "Aufnahme starten", "Démarrer l'enregistrement", "Iniciar grabación", "録画開始", "开始录制", "Начать запись"}},

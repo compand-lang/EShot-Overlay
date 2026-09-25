@@ -17,8 +17,13 @@ class TranslationClient;
 class OcrTranslateController : public QObject {
     Q_OBJECT
 public:
+    enum class Mode {
+        Translate, // OCR + перевод в overlay
+        TextOnly   // только OCR, распознанный текст в overlay
+    };
+
     OcrTranslateController(const QPixmap &pixmap, const QRect &sourceDisplayRect,
-                           QObject *parent = nullptr);
+                           Mode mode = Mode::Translate, QObject *parent = nullptr);
 
     void start();
 
@@ -34,6 +39,7 @@ private:
 
     QPixmap m_pixmap;
     QRect m_sourceDisplayRect;
+    Mode m_mode = Mode::Translate;
     OcrEngine *m_engine = nullptr;
     TranslationClient *m_translator = nullptr;
     QLabel *m_statusWindow = nullptr;

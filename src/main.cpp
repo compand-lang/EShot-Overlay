@@ -25,6 +25,7 @@
 #include <QDir>
 #include <QDateTime>
 #include <QClipboard>
+#include <QMimeData>
 #include <QDesktopServices>
 #include <QGuiApplication>
 #include <QScreen>
@@ -61,6 +62,7 @@
 #include "ui/AboutDialog.h"
 #include "ui/ControlCenterDialog.h"
 #include "ui/FirstRunWizard.h"
+#include "ui/TranslatorDialog.h"
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -334,6 +336,25 @@ public slots:
     {
         if (m_updateManager)
             m_updateManager->installUpdate();
+    }
+
+    void onTranslatorRequested()
+    {
+        if (!m_translatorDialog) {
+            m_translatorDialog = new TranslatorDialog();
+            m_translatorDialog->setAttribute(Qt::WA_DeleteOnClose);
+            connect(m_translatorDialog, &QDialog::destroyed, this, [this]() {
+                m_translatorDialog = nullptr;
+            });
+        }
+        // При вызове по горячей клавише подставляем выделенный/скопированный текст.
+        if (const QMimeData *mime = QGuiApplication::clipboard()->mimeData()) {
+            if (mime->hasText())
+                m_translatorDialog->prefillIfEmpty(QGuiApplication::clipboard()->text());
+        }
+        m_translatorDialog->show();
+        m_translatorDialog->raise();
+        m_translatorDialog->activateWindow();
     }
 
     void onSettingsRequested()
@@ -874,6 +895,16 @@ private:
             m_trayMenu->addSeparator();
         }
 
+        QAction *translatorAction = m_trayMenu->addAction(
+            trayIcon(":/icons/translate.svg"), TranslationManager::trayTranslator());
+        translatorAction->setToolTip(QStringLiteral("%1 (%2)").arg(
+            TranslationManager::trayTranslator(),
+            HotkeyManager::shortcutText(
+                static_cast<UINT>(hotkeySettings.value("translatorHotkeyModifiers", 0).toUInt()),
+                static_cast<UINT>(hotkeySettings.value("translatorHotkeyVKey", 0).toUInt()))));
+        connect(translatorAction, &QAction::triggered, this, &EShotApp::onTranslatorRequested);
+        m_trayMenu->addSeparator();
+
         QAction *settingsAction = m_trayMenu->addAction(trayIcon(":/icons/gear.svg"), TranslationManager::traySettings());
         connect(settingsAction, &QAction::triggered, this, &EShotApp::onSettingsRequested);
         QAction *aboutAction = m_trayMenu->addAction(trayIcon(":/icons/pen.svg"), TranslationManager::trayAbout());
@@ -957,6 +988,8 @@ private:
                 this, &EShotApp::onRecordVideoRequested);
         connect(&HotkeyManager::instance(), &HotkeyManager::windowCaptureRequested,
                 this, &EShotApp::onWindowCaptureRequested);
+        connect(&HotkeyManager::instance(), &HotkeyManager::translatorRequested,
+                this, &EShotApp::onTranslatorRequested);
         connect(&HotkeyManager::instance(), &HotkeyManager::recordingPauseRequested, this, [this]() {
             if (m_videoRecorder && m_videoRecorder->isRecording()) {
                 if (m_videoRecorder->isPaused()) m_videoRecorder->resume();
@@ -1054,6 +1087,7 @@ private:
 
     QSystemTrayIcon *m_trayIcon = nullptr;
     QMenu *m_trayMenu = nullptr;
+    TranslatorDialog *m_translatorDialog = nullptr;
     UpdateManager *m_updateManager = nullptr;
     CaptureOverlay *m_overlay = nullptr;
     bool m_showNotifications = true;
