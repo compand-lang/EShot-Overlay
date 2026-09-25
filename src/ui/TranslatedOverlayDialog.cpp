@@ -5,8 +5,14 @@
 #include <QPainter>
 #include <QVBoxLayout>
 #include <QKeyEvent>
+#include <QKeySequence>
 #include <QMenu>
 #include <QAction>
+#include <QTextEdit>
+#include <QTextDocument>
+#include <QFrame>
+#include <QToolButton>
+#include <QIcon>
 #include <QDebug>
 
 QSet<TranslatedOverlayDialog *> TranslatedOverlayDialog::s_liveOverlays;
@@ -31,9 +37,7 @@ TranslatedOverlayDialog::TranslatedOverlayDialog(const QPixmap &source,
         QAction *closeAction = menu.addAction(QStringLiteral("Close"));
         QAction *chosen = menu.exec(m_imageLabel->mapToGlobal(pos));
         if (chosen == copy) {
-            QStringList text;
-            for (const OcrTextLine &line : m_lines) text << line.text;
-            QGuiApplication::clipboard()->setText(text.join(QLatin1Char('\n')));
+            copyAllText();
         } else if (chosen == closeAction) {
             close();
         }
@@ -43,6 +47,41 @@ TranslatedOverlayDialog::TranslatedOverlayDialog(const QPixmap &source,
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_imageLabel);
     resize(m_imageLabel->pixmap().size());
+
+    // Настоящий текст поверх плашек: можно выделить мышкой, Ctrl+C копирует.
+    const bool hasTarget = m_targetDisplayRect.isValid();
+    const double sx = hasTarget ? (double(width()) / double(qMax(1, m_source.width()))) : 1.0;
+    const double sy = hasTarget ? (double(height()) / double(qMax(1, m_source.height()))) : 1.0;
+    for (const OcrTextLine &line : m_lines) {
+        QString text = line.text.trimmed();
+        if (text.isEmpty()) continue;
+
+        QRect r = line.rect.normalized().adjusted(-2, -2, 2, 2);
+        if (hasTarget) {
+            r = QRect(QPoint(qRound(r.x() * sx), qRound(r.y() * sy)),
+                      QSize(qMax(1, qRound(r.width() * sx)), qMax(1, qRound(r.height() * sy))));
+        }
+        if (r.isEmpty()) r = QRect(0, 0, width(), height());
+        r = r.intersected(QRect(0, 0, width(), height()));
+        if (r.isEmpty()) continue;
+
+        addTextEditForLine(r.adjusted(4, 2, -4, -2), text, fontForLine(r, text, font()));
+    }
+
+    // Кнопка «копировать весь текст» в правом верхнем углу оверлея.
+    auto *copyButton = new QToolButton(m_imageLabel);
+    copyButton->setIcon(QIcon(QStringLiteral(":/icons/copy.svg")));
+    copyButton->setIconSize(QSize(18, 18));
+    copyButton->setFixedSize(30, 30);
+    copyButton->setAutoRaise(false);
+    copyButton->setCursor(Qt::ArrowCursor);
+    copyButton->setStyleSheet(QStringLiteral(
+        "QToolButton { background: rgba(43,43,43,220); border: 1px solid #505050;"
+        " border-radius: 6px; }"
+        "QToolButton:hover { background: rgba(70,70,70,230); }"));
+    copyButton->setToolTip(QStringLiteral("Copy text"));
+    copyButton->move(qMax(4, m_imageLabel->width() - 38), 8);
+    connect(copyButton, &QToolButton::clicked, this, [this]() { copyAllText(); });
 }
 
 TranslatedOverlayDialog::~TranslatedOverlayDialog() {
@@ -57,12 +96,82 @@ void TranslatedOverlayDialog::closeAll() {
     }
 }
 
+void TranslatedOverlayDialog::copyAllText() const {
+    QStringList text;
+    for (const OcrTextLine &line : m_lines) text << line.text;
+    QGuiApplication::clipboard()->setText(text.join(QLatin1Char('\n')));
+}
+
 void TranslatedOverlayDialog::keyPressEvent(QKeyEvent *event) {
     if (event->key() == Qt::Key_Escape) {
         close();
         return;
     }
+    if (event->matches(QKeySequence::Copy)) {
+        copyAllText();
+        return;
+    }
     QDialog::keyPressEvent(event);
+}
+
+bool TranslatedOverlayDialog::eventFilter(QObject *watched, QEvent *event) {
+    if (event->type() == QEvent::KeyPress) {
+        auto *keyEvent = static_cast<QKeyEvent *>(event);
+        if (keyEvent->matches(QKeySequence::Copy)) {
+            auto *edit = qobject_cast<QTextEdit *>(watched);
+            // Если в редакторе есть выделение — стандартное копирование выделения,
+            // иначе копируем весь текст оверлея.
+            if (edit && !edit->textCursor().hasSelection()) {
+                copyAllText();
+                return true;
+            }
+        }
+        if (keyEvent->key() == Qt::Key_Escape) {
+            close();
+            return true;
+        }
+    }
+    return QDialog::eventFilter(watched, event);
+}
+
+void TranslatedOverlayDialog::addTextEditForLine(const QRect &r, const QString &text, const QFont &font) {
+    auto *edit = new QTextEdit(m_imageLabel);
+    edit->setReadOnly(true);
+    edit->setFrameStyle(QFrame::NoFrame);
+    edit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    edit->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    edit->setStyleSheet(QStringLiteral(
+        "QTextEdit { background: transparent; color: #f5f5f5; border: none; }"));
+    if (QTextDocument *doc = edit->document())
+        doc->setDocumentMargin(0);
+    edit->setFont(font);
+    edit->setPlainText(text);
+    edit->move(r.topLeft());
+    edit->resize(r.size());
+    edit->installEventFilter(this);
+    edit->show();
+    m_textEdits.append(edit);
+}
+
+QFont TranslatedOverlayDialog::fontForLine(const QRect &r, const QString &text, QFont base) const {
+    // Русский/длинный текст оборачивается — не даём шрифту ужиматься слишком сильно,
+    // как это было при жёсткой подгонке под высоту плашки.
+    int size = qMax(14, qMin(r.height() - 4, 40));
+    base.setPointSize(size);
+    base.setBold(true);
+
+    QPixmap dummy(1, 1);
+    QPainter p(&dummy);
+    p.setRenderHint(QPainter::TextAntialiasing, true);
+    QRect box = r.adjusted(4, 2, -4, -2);
+    QRectF textRect = p.boundingRect(box, Qt::TextWordWrap, text);
+    while ((textRect.height() > box.height() || textRect.width() > box.width()) && size > 14) {
+        --size;
+        base.setPointSize(size);
+        p.setFont(base);
+        textRect = p.boundingRect(box, Qt::TextWordWrap, text);
+    }
+    return base;
 }
 
 QPixmap TranslatedOverlayDialog::renderOverlay() const {
@@ -87,6 +196,8 @@ QPixmap TranslatedOverlayDialog::renderOverlay() const {
         p.drawPixmap(0, 0, m_source);
     }
 
+    // Рисуем только тёмные плашки — сам текст показывают QTextEdit поверх,
+    // чтобы его можно было выделять и копировать.
     for (const OcrTextLine &line : m_lines) {
         QRect r = line.rect.normalized().adjusted(-2, -2, 2, 2);
         if (hasTarget) {
@@ -98,27 +209,6 @@ QPixmap TranslatedOverlayDialog::renderOverlay() const {
         if (r.isEmpty()) continue;
 
         p.fillRect(r, QColor(28, 28, 28, 204));
-
-        QString text = line.text.trimmed();
-        if (text.isEmpty()) continue;
-
-        QFont font = p.font();
-        int size = qMax(11, qMin(r.height() - 4, 32));
-        font.setPointSize(size);
-        font.setBold(true);
-        p.setFont(font);
-        p.setPen(QColor(245, 245, 245));
-
-        QRectF textRect = p.boundingRect(r.adjusted(4, 2, -4, -2), Qt::TextWordWrap, text);
-        if (textRect.height() > r.height() - 4 || textRect.width() > r.width() - 8) {
-            for (int s = size; s >= 10; --s) {
-                font.setPointSize(s);
-                p.setFont(font);
-                textRect = p.boundingRect(r.adjusted(4, 2, -4, -2), Qt::TextWordWrap, text);
-                if (textRect.height() <= r.height() - 4 && textRect.width() <= r.width() - 8) break;
-            }
-        }
-        p.drawText(r.adjusted(4, 2, -4, -2), Qt::TextWordWrap, text);
     }
     return out;
 }

@@ -29,8 +29,8 @@ public:
 
 private slots:
     void onTranslateClicked();
-    void onCopySourceClicked();
     void onCopyResultClicked();
+    void onPasteClicked();
     void onProviderChanged(int index);
     void onTextChanged();
     void onTranslationReady(const QVector<OcrTextLine> &lines);
@@ -46,8 +46,8 @@ private:
     QLabel *m_statusLabel;
     QComboBox *m_providerCombo;
     QPushButton *m_translateBtn;
-    QPushButton *m_copySourceBtn;
     QPushButton *m_copyResultBtn;
+    QPushButton *m_pasteBtn;
     QPushButton *m_closeBtn;
     TranslationClient *m_translator;
     QTimer *m_debounce;

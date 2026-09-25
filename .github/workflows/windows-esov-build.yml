@@ -42,7 +42,7 @@ jobs:
             Add-Content build\build-log.txt "FAIL: src/ui/TranslatorDialog.cpp is missing."
             throw 'src/ui/TranslatorDialog.cpp is missing.'
           }
-          if (-not $dlg.Contains('closeAction')) {
+          if (-not $dlg.Contains('copyAllText')) {
             Add-Content build\build-log.txt "FAIL: TranslatedOverlayDialog.cpp is NOT patched."
             throw 'src/ui/TranslatedOverlayDialog.cpp is NOT patched.'
           }

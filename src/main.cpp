@@ -67,6 +67,7 @@
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
+#include <QThread>
 
 namespace {
 
@@ -347,15 +348,70 @@ public slots:
                 m_translatorDialog = nullptr;
             });
         }
-        // При вызове по горячей клавише подставляем выделенный/скопированный текст.
-        if (const QMimeData *mime = QGuiApplication::clipboard()->mimeData()) {
-            if (mime->hasText())
-                m_translatorDialog->prefillIfEmpty(QGuiApplication::clipboard()->text());
-        }
+        // Подставляем выделенный в другом приложении текст: эмулируем Ctrl+C
+        // в активном окне и читаем буфер обмена. Старый буфер восстанавливаем,
+        // если выделение не удалось захватить.
+        QString selected = grabSelectedTextFromScreen();
+        if (!selected.trimmed().isEmpty())
+            m_translatorDialog->setSourceText(selected);
+        else if (const QMimeData *mime = QGuiApplication::clipboard()->mimeData())
+            m_translatorDialog->prefillIfEmpty(mime->hasText() ? mime->text() : QString());
         m_translatorDialog->show();
         m_translatorDialog->raise();
         m_translatorDialog->activateWindow();
     }
+
+#ifdef Q_OS_WIN
+    // Эмуляция Ctrl+C (или Ctrl+Insert) в окне, которое сейчас в фокусе,
+    // с ожиданием обновления буфера обмена. Возвращает захваченный текст
+    // или пустую строку (буфер восстановлен).
+    QString grabSelectedTextFromScreen()
+    {
+        QClipboard *clip = QGuiApplication::clipboard();
+        const bool hadText = clip->mimeData() && clip->mimeData()->hasText();
+        const QString oldText = hadText ? clip->text() : QString();
+        const bool hadImage = clip->mimeData() && clip->mimeData()->hasImage();
+        const QPixmap oldPixmap = hadImage ? clip->pixmap() : QPixmap();
+
+        auto sendCopyCombo = [](bool useInsert) {
+            INPUT inputs[4] = {};
+            const WORD copyKey = useInsert ? VK_INSERT : 0x43; // 'C'
+            for (int i = 0; i < 4; ++i) {
+                inputs[i].type = INPUT_KEYBOARD;
+                inputs[i].ki.wVk = (i == 0 || i == 3) ? VK_CONTROL : copyKey;
+                inputs[i].ki.dwFlags = (i >= 2) ? KEYEVENTF_KEYUP : 0;
+            }
+            SendInput(4, inputs, sizeof(INPUT));
+        };
+
+        for (int attempt = 0; attempt < 2; ++attempt) {
+            sendCopyCombo(attempt == 1); // сначала Ctrl+C, затем Ctrl+Insert
+            QElapsedTimer timer;
+            timer.start();
+            while (timer.elapsed() < 700) {
+                QCoreApplication::processEvents(QEventLoop::AllEvents, 40);
+                QThread::msleep(30);
+                const QString text = clip->text();
+                if (!text.isEmpty() && text != oldText)
+                    return text;
+            }
+        }
+
+        if (hadText)
+            clip->setText(oldText);
+        else if (hadImage)
+            clip->setPixmap(oldPixmap);
+        else
+            clip->clear();
+        return QString();
+    }
+#else
+    QString grabSelectedTextFromScreen()
+    {
+        const QMimeData *mime = QGuiApplication::clipboard()->mimeData();
+        return mime && mime->hasText() ? mime->text() : QString();
+    }
+#endif
 
     void onSettingsRequested()
     {

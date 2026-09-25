@@ -6,6 +6,7 @@
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QSettings>
+#include <QIcon>
 #include <QDebug>
 
 TranslatorDialog::TranslatorDialog(QWidget *parent)
@@ -45,18 +46,22 @@ TranslatorDialog::TranslatorDialog(QWidget *parent)
 
     auto *btnRow = new QHBoxLayout();
     m_translateBtn = new QPushButton(TranslationManager::ocrTranslate(), this);
-    m_copySourceBtn = new QPushButton(TranslationManager::ocrCopy(), this);
-    m_copyResultBtn = new QPushButton(TranslationManager::ocrCopy(), this);
+    m_copyResultBtn = new QPushButton(this);
+    m_copyResultBtn->setIcon(QIcon(QStringLiteral(":/icons/copy.svg")));
+    m_copyResultBtn->setToolTip(TranslationManager::ocrCopy());
     m_copyResultBtn->setEnabled(false);
+    m_pasteBtn = new QPushButton(this);
+    m_pasteBtn->setIcon(QIcon(QStringLiteral(":/icons/paste.svg")));
+    m_pasteBtn->setToolTip(QStringLiteral("Paste from clipboard"));
     m_closeBtn = new QPushButton(TranslationManager::ocrClose(), this);
-    const QList<QPushButton *> actionButtons = {m_translateBtn, m_copySourceBtn, m_copyResultBtn, m_closeBtn};
+    const QList<QPushButton *> actionButtons = {m_translateBtn, m_copyResultBtn, m_pasteBtn, m_closeBtn};
     for (QPushButton *button : actionButtons) {
-        button->setFixedHeight(30);
-        button->setStyleSheet(QStringLiteral("QPushButton { padding: 0 10px; }"));
+        button->setFixedSize(32, 30);
+        button->setStyleSheet(QStringLiteral("QPushButton { padding: 0 4px; }"));
     }
     btnRow->addWidget(m_translateBtn);
-    btnRow->addWidget(m_copySourceBtn);
     btnRow->addWidget(m_copyResultBtn);
+    btnRow->addWidget(m_pasteBtn);
     btnRow->addStretch();
     btnRow->addWidget(m_closeBtn);
     layout->addLayout(btnRow);
@@ -68,8 +73,8 @@ TranslatorDialog::TranslatorDialog(QWidget *parent)
 
     connect(m_sourceEdit, &QTextEdit::textChanged, this, &TranslatorDialog::onTextChanged);
     connect(m_translateBtn, &QPushButton::clicked, this, &TranslatorDialog::onTranslateClicked);
-    connect(m_copySourceBtn, &QPushButton::clicked, this, &TranslatorDialog::onCopySourceClicked);
     connect(m_copyResultBtn, &QPushButton::clicked, this, &TranslatorDialog::onCopyResultClicked);
+    connect(m_pasteBtn, &QPushButton::clicked, this, &TranslatorDialog::onPasteClicked);
     connect(m_closeBtn, &QPushButton::clicked, this, &QDialog::accept);
     connect(m_providerCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &TranslatorDialog::onProviderChanged);
@@ -165,8 +170,10 @@ void TranslatorDialog::onTranslationFailed(const QString &reason) {
     qWarning() << "[EShot] Translator dialog: translation failed:" << reason;
 }
 
-void TranslatorDialog::onCopySourceClicked() {
-    QGuiApplication::clipboard()->setText(m_sourceEdit->toPlainText());
+void TranslatorDialog::onPasteClicked() {
+    const QString text = QGuiApplication::clipboard()->text();
+    if (!text.trimmed().isEmpty())
+        setSourceText(text);
 }
 
 void TranslatorDialog::onCopyResultClicked() {

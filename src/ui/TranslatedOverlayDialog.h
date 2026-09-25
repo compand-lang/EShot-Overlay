@@ -7,8 +7,10 @@
 #include <QPixmap>
 #include <QRect>
 #include <QSet>
+#include <QPointer>
 
 class QLabel;
+class QTextEdit;
 
 class TranslatedOverlayDialog : public QDialog {
     Q_OBJECT
@@ -25,14 +27,19 @@ public:
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     QPixmap renderOverlay() const;
+    QFont fontForLine(const QRect &r, const QString &text, QFont base) const;
+    void copyAllText() const;
+    void addTextEditForLine(const QRect &r, const QString &text, const QFont &font);
 
     QPixmap m_source;
     QVector<OcrTextLine> m_lines;
     QRect m_targetDisplayRect;
     QLabel *m_imageLabel = nullptr;
+    QList<QPointer<QTextEdit>> m_textEdits;
 
     static QSet<TranslatedOverlayDialog *> s_liveOverlays;
 };
