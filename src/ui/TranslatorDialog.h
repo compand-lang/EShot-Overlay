@@ -38,6 +38,7 @@ private slots:
 
 private:
     void startTranslation();
+    void finishTranslationRun();
     void applyProviderFromCombo();
     void populateProviders();
 
@@ -52,6 +53,7 @@ private:
     TranslationClient *m_translator;
     QTimer *m_debounce;
     bool m_translating = false;
+    bool m_restartPending = false;
 };
 
 #endif

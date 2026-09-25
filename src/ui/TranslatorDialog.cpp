@@ -50,15 +50,18 @@ TranslatorDialog::TranslatorDialog(QWidget *parent)
     m_copyResultBtn->setIcon(QIcon(QStringLiteral(":/icons/copy.svg")));
     m_copyResultBtn->setToolTip(TranslationManager::ocrCopy());
     m_copyResultBtn->setEnabled(false);
+    m_copyResultBtn->setFixedSize(32, 30);
     m_pasteBtn = new QPushButton(this);
     m_pasteBtn->setIcon(QIcon(QStringLiteral(":/icons/paste.svg")));
     m_pasteBtn->setToolTip(QStringLiteral("Paste from clipboard"));
+    m_pasteBtn->setFixedSize(32, 30);
     m_closeBtn = new QPushButton(TranslationManager::ocrClose(), this);
-    const QList<QPushButton *> actionButtons = {m_translateBtn, m_copyResultBtn, m_pasteBtn, m_closeBtn};
-    for (QPushButton *button : actionButtons) {
-        button->setFixedSize(32, 30);
-        button->setStyleSheet(QStringLiteral("QPushButton { padding: 0 4px; }"));
-    }
+    m_translateBtn->setFixedHeight(30);
+    m_closeBtn->setFixedHeight(30);
+    m_translateBtn->setStyleSheet(QStringLiteral("QPushButton { padding: 0 12px; }"));
+    m_closeBtn->setStyleSheet(QStringLiteral("QPushButton { padding: 0 12px; }"));
+    m_copyResultBtn->setStyleSheet(QStringLiteral("QPushButton { padding: 0 4px; }"));
+    m_pasteBtn->setStyleSheet(QStringLiteral("QPushButton { padding: 0 4px; }"));
     btnRow->addWidget(m_translateBtn);
     btnRow->addWidget(m_copyResultBtn);
     btnRow->addWidget(m_pasteBtn);
@@ -142,6 +145,12 @@ void TranslatorDialog::startTranslation() {
         m_statusLabel->clear();
         return;
     }
+    // TranslationClient не принимает новый прогон, пока идёт текущий —
+    // ставим перевод в очередь вместо ошибки "already running".
+    if (m_translating) {
+        m_restartPending = true;
+        return;
+    }
     m_translating = true;
     m_translateBtn->setEnabled(false);
     m_statusLabel->setText(TranslationManager::ocrProcessing());
@@ -153,20 +162,27 @@ void TranslatorDialog::startTranslation() {
     m_translator->translateLines(lines);
 }
 
+void TranslatorDialog::finishTranslationRun() {
+    m_translating = false;
+    m_translateBtn->setEnabled(true);
+    if (m_restartPending) {
+        m_restartPending = false;
+        startTranslation();
+    }
+}
+
 void TranslatorDialog::onTranslationReady(const QVector<OcrTextLine> &lines) {
     QStringList parts;
     for (const OcrTextLine &line : lines) parts << line.text;
     m_resultEdit->setPlainText(parts.join(QLatin1Char('\n')));
     m_copyResultBtn->setEnabled(!parts.isEmpty());
     m_statusLabel->clear();
-    m_translating = false;
-    m_translateBtn->setEnabled(true);
+    finishTranslationRun();
 }
 
 void TranslatorDialog::onTranslationFailed(const QString &reason) {
     m_statusLabel->setText(reason.left(200));
-    m_translating = false;
-    m_translateBtn->setEnabled(true);
+    finishTranslationRun();
     qWarning() << "[EShot] Translator dialog: translation failed:" << reason;
 }
 

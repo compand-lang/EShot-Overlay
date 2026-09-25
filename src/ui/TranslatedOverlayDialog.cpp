@@ -11,6 +11,7 @@
 #include <QTextEdit>
 #include <QTextDocument>
 #include <QFrame>
+#include <QResizeEvent>
 #include <QToolButton>
 #include <QIcon>
 #include <QDebug>
@@ -69,19 +70,30 @@ TranslatedOverlayDialog::TranslatedOverlayDialog(const QPixmap &source,
     }
 
     // Кнопка «копировать весь текст» в правом верхнем углу оверлея.
-    auto *copyButton = new QToolButton(m_imageLabel);
-    copyButton->setIcon(QIcon(QStringLiteral(":/icons/copy.svg")));
-    copyButton->setIconSize(QSize(18, 18));
-    copyButton->setFixedSize(30, 30);
-    copyButton->setAutoRaise(false);
-    copyButton->setCursor(Qt::ArrowCursor);
-    copyButton->setStyleSheet(QStringLiteral(
+    m_copyButton = new QToolButton(m_imageLabel);
+    m_copyButton->setIcon(QIcon(QStringLiteral(":/icons/copy.svg")));
+    m_copyButton->setIconSize(QSize(18, 18));
+    m_copyButton->setFixedSize(30, 30);
+    m_copyButton->setAutoRaise(false);
+    m_copyButton->setCursor(Qt::ArrowCursor);
+    m_copyButton->setStyleSheet(QStringLiteral(
         "QToolButton { background: rgba(43,43,43,220); border: 1px solid #505050;"
         " border-radius: 6px; }"
         "QToolButton:hover { background: rgba(70,70,70,230); }"));
-    copyButton->setToolTip(QStringLiteral("Copy text"));
-    copyButton->move(qMax(4, m_imageLabel->width() - 38), 8);
-    connect(copyButton, &QToolButton::clicked, this, [this]() { copyAllText(); });
+    m_copyButton->setToolTip(QStringLiteral("Copy text"));
+    connect(m_copyButton, &QToolButton::clicked, this, [this]() { copyAllText(); });
+    placeCopyButton();
+}
+
+void TranslatedOverlayDialog::resizeEvent(QResizeEvent *event) {
+    QDialog::resizeEvent(event);
+    placeCopyButton();
+}
+
+void TranslatedOverlayDialog::placeCopyButton() {
+    if (!m_copyButton || !m_imageLabel) return;
+    m_copyButton->move(qMax(2, m_imageLabel->width() - m_copyButton->width() - 2), 2);
+    m_copyButton->raise();
 }
 
 TranslatedOverlayDialog::~TranslatedOverlayDialog() {
@@ -154,9 +166,8 @@ void TranslatedOverlayDialog::addTextEditForLine(const QRect &r, const QString &
 }
 
 QFont TranslatedOverlayDialog::fontForLine(const QRect &r, const QString &text, QFont base) const {
-    // Русский/длинный текст оборачивается — не даём шрифту ужиматься слишком сильно,
-    // как это было при жёсткой подгонке под высоту плашки.
-    int size = qMax(14, qMin(r.height() - 4, 40));
+    // Русский/длинный текст оборачивается — не даём шрифту ужиматься слишком сильно.
+    int size = qMax(12, qMin(r.height() - 4, 32));
     base.setPointSize(size);
     base.setBold(true);
 
@@ -164,8 +175,9 @@ QFont TranslatedOverlayDialog::fontForLine(const QRect &r, const QString &text, 
     QPainter p(&dummy);
     p.setRenderHint(QPainter::TextAntialiasing, true);
     QRect box = r.adjusted(4, 2, -4, -2);
+    p.setFont(base); // иначе первое измерение идёт шрифтом по умолчанию
     QRectF textRect = p.boundingRect(box, Qt::TextWordWrap, text);
-    while ((textRect.height() > box.height() || textRect.width() > box.width()) && size > 14) {
+    while ((textRect.height() > box.height() || textRect.width() > box.width()) && size > 12) {
         --size;
         base.setPointSize(size);
         p.setFont(base);

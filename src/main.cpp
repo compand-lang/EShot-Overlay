@@ -350,8 +350,16 @@ public slots:
         }
         // Подставляем выделенный в другом приложении текст: эмулируем Ctrl+C
         // в активном окне и читаем буфер обмена. Старый буфер восстанавливаем,
-        // если выделение не удалось захватить.
-        QString selected = grabSelectedTextFromScreen();
+        // если выделение не удалось захватить. При вызове из трея фокус уже
+        // у трея — активируем окно, которое было в фокусе до открытия меню.
+        const bool fromTray = sender() && qobject_cast<QAction *>(sender());
+        QString selected = grabSelectedTextFromScreen(
+#ifdef Q_OS_WIN
+            fromTray ? m_foregroundBeforeTrayMenu : nullptr
+#else
+            nullptr
+#endif
+        );
         if (!selected.trimmed().isEmpty())
             m_translatorDialog->setSourceText(selected);
         else if (const QMimeData *mime = QGuiApplication::clipboard()->mimeData())
@@ -365,13 +373,35 @@ public slots:
     // Эмуляция Ctrl+C (или Ctrl+Insert) в окне, которое сейчас в фокусе,
     // с ожиданием обновления буфера обмена. Возвращает захваченный текст
     // или пустую строку (буфер восстановлен).
-    QString grabSelectedTextFromScreen()
+    QString grabSelectedTextFromScreen(void *preferredWindow)
     {
         QClipboard *clip = QGuiApplication::clipboard();
         const bool hadText = clip->mimeData() && clip->mimeData()->hasText();
         const QString oldText = hadText ? clip->text() : QString();
         const bool hadImage = clip->mimeData() && clip->mimeData()->hasImage();
         const QPixmap oldPixmap = hadImage ? clip->pixmap() : QPixmap();
+        const DWORD seqBefore = GetClipboardSequenceNumber();
+
+        // Когда вызов идёт по горячей клавише, пользователь ещё физически
+        // держит её модификаторы. Если послать Ctrl+C в этот момент, Shift
+        // (если он в сочетании) превратит его в Ctrl+Shift+C — в браузерах
+        // это «исследовать элемент» / консоль. Ждём отпускания.
+        QElapsedTimer releaseTimer;
+        releaseTimer.start();
+        while (releaseTimer.elapsed() < 900) {
+            if (!(GetAsyncKeyState(VK_CONTROL) & 0x8000)
+                && !(GetAsyncKeyState(VK_SHIFT) & 0x8000)
+                && !(GetAsyncKeyState(VK_MENU) & 0x8000))
+                break;
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+            QThread::msleep(20);
+        }
+
+        if (preferredWindow && IsWindow(static_cast<HWND>(preferredWindow))
+            && GetForegroundWindow() != static_cast<HWND>(preferredWindow)) {
+            SetForegroundWindow(static_cast<HWND>(preferredWindow));
+            QThread::msleep(120);
+        }
 
         auto sendCopyCombo = [](bool useInsert) {
             INPUT inputs[4] = {};
@@ -391,8 +421,10 @@ public slots:
             while (timer.elapsed() < 700) {
                 QCoreApplication::processEvents(QEventLoop::AllEvents, 40);
                 QThread::msleep(30);
+                if (GetClipboardSequenceNumber() == seqBefore)
+                    continue;
                 const QString text = clip->text();
-                if (!text.isEmpty() && text != oldText)
+                if (!text.isEmpty())
                     return text;
             }
         }
@@ -406,8 +438,9 @@ public slots:
         return QString();
     }
 #else
-    QString grabSelectedTextFromScreen()
+    QString grabSelectedTextFromScreen(void *preferredWindow)
     {
+        Q_UNUSED(preferredWindow);
         const QMimeData *mime = QGuiApplication::clipboard()->mimeData();
         return mime && mime->hasText() ? mime->text() : QString();
     }
@@ -980,6 +1013,13 @@ private:
 
         m_trayMenu = new QMenu();
         m_trayMenu->setToolTipsVisible(true);
+#ifdef Q_OS_WIN
+        // Запоминаем окно в фокусе до того, как меню трея его отберёт —
+        // нужно для захвата выделенного текста при вызове переводчика из трея.
+        connect(m_trayMenu, &QMenu::aboutToShow, this, [this]() {
+            m_foregroundBeforeTrayMenu = GetForegroundWindow();
+        });
+#endif
         m_trayMenu->setStyleSheet(QStringLiteral(
             "QMenu {"
             "  background: #2b2b2b;"
@@ -1144,6 +1184,9 @@ private:
     QSystemTrayIcon *m_trayIcon = nullptr;
     QMenu *m_trayMenu = nullptr;
     TranslatorDialog *m_translatorDialog = nullptr;
+#ifdef Q_OS_WIN
+    HWND m_foregroundBeforeTrayMenu = nullptr; // окно, из которого открыли меню трея
+#endif
     UpdateManager *m_updateManager = nullptr;
     CaptureOverlay *m_overlay = nullptr;
     bool m_showNotifications = true;
