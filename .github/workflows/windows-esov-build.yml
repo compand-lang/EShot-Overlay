@@ -1,0 +1,86 @@
+name: EShot Overlay Windows Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-windows-x64:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify patched sources
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build | Out-Null
+          Set-Content build\build-log.txt "Verify patched sources..."
+          $h = Get-Content src/core/OcrEngine.h -Raw
+          $cpp = Get-Content src/core/OcrEngine.cpp -Raw
+          $dlg = Get-Content src/ui/TranslatedOverlayDialog.cpp -Raw
+          $cap = Get-Content src/capture/CaptureOverlay.cpp -Raw
+          if (-not $h.Contains('recognizeWithLayout')) {
+            Add-Content build\build-log.txt "FAIL: src/core/OcrEngine.h is NOT patched."
+            throw 'src/core/OcrEngine.h is NOT patched.'
+          }
+          if ($cpp.Contains("QLatin1Char('" + [char]10 + "')")) {
+            Add-Content build\build-log.txt "FAIL: src/core/OcrEngine.cpp still has broken QLatin1Char newline."
+            throw 'src/core/OcrEngine.cpp still has broken QLatin1Char newline.'
+          }
+          $lambdaIdx = $cpp.IndexOf('[this, self, imagePath, withLayout, tsvPath]')
+          $declIdx = $cpp.IndexOf('QString tsvPath;')
+          if ($lambdaIdx -lt 0 -or $declIdx -lt 0 -or $declIdx -gt $lambdaIdx) {
+            Add-Content build\build-log.txt "FAIL: OcrEngine.cpp tsvPath must be declared before the finished lambda. Use fixed6 source."
+            throw 'src/core/OcrEngine.cpp tsvPath declaration/capture is not fixed.'
+          }
+          if ($cap.Contains('ui/OcrDialog.h')) {
+            Add-Content build\build-log.txt "FAIL: CaptureOverlay.cpp still includes removed ui/OcrDialog.h."
+            throw 'src/capture/CaptureOverlay.cpp still includes ui/OcrDialog.h.'
+          }
+          if (-not (Test-Path src/ui/TranslatorDialog.cpp)) {
+            Add-Content build\build-log.txt "FAIL: src/ui/TranslatorDialog.cpp is missing."
+            throw 'src/ui/TranslatorDialog.cpp is missing.'
+          }
+          if (-not $dlg.Contains('copyAllText')) {
+            Add-Content build\build-log.txt "FAIL: TranslatedOverlayDialog.cpp is NOT patched."
+            throw 'src/ui/TranslatedOverlayDialog.cpp is NOT patched.'
+          }
+          Add-Content build\build-log.txt "OK: source patch markers found."
+
+      - name: Install Qt 6.8.2
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.2'
+          arch: win64_msvc2022_64
+
+      - name: Setup MSVC x64
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Build EShot x64 Release
+        shell: cmd
+        run: |
+          mkdir build 2>nul
+          if not defined QT_ROOT_DIR (
+            echo ERROR: QT_ROOT_DIR is not set by install-qt-action.
+            exit /b 1
+          )
+          set QT_DIR=%QT_ROOT_DIR%
+          echo Using QT_DIR=%QT_DIR%
+          build.bat > build\build-log.txt 2>&1
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: EShot-build-log
+          path: build/build-log.txt
+
+      - name: Upload dist
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: EShot-overlay-windows-x64
+          path: dist\bin

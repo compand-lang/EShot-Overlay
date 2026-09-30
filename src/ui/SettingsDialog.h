@@ -167,6 +167,7 @@ private:
     QKeySequenceEdit *m_gifCaptureHotkeyEdit = nullptr;
     QKeySequenceEdit *m_videoCaptureHotkeyEdit = nullptr;
     QKeySequenceEdit *m_windowCaptureHotkeyEdit = nullptr;
+    QKeySequenceEdit *m_translatorHotkeyEdit = nullptr;
     QMap<QString, QKeySequenceEdit*> m_overlayHotkeyEdits;
     QLabel *m_hotkeyStatusLabel = nullptr;
     QLabel *m_printScreenConflictLabel = nullptr;
@@ -192,6 +193,18 @@ private:
 
     // Language
     QComboBox *m_langCombo = nullptr;
+
+    // Translation (screen OCR overlay)
+    QComboBox *m_translationProviderCombo = nullptr;
+    QComboBox *m_translationTargetCombo = nullptr;
+    QLineEdit *m_translationDeepLKeyEdit = nullptr;
+    QLineEdit *m_translationLibreUrlEdit = nullptr;
+    QLineEdit *m_translationLibreKeyEdit = nullptr;
+    QLineEdit *m_translationCustomUrlEdit = nullptr;
+    QLineEdit *m_translationCustomKeyEdit = nullptr;
+
+private slots:
+    void onTranslationProviderChanged();
 };
 
 #endif

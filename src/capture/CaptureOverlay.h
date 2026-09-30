@@ -333,6 +333,7 @@ private slots:
     void onEyedropperRequested();
     void onSelectionLockToggled(bool locked);
     void onOcrRequested();
+    void onOcrTranslateRequested();
     void onUploadRequested();
     void onGoogleLensRequested();
     void onGifRequested();

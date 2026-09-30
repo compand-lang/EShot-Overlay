@@ -7,7 +7,8 @@
 #include "annotation/AnnotationRotationGeometry.h"
 #include "ui/AnnotationToolbar.h"
 #include "ui/OverlayPanelStyle.h"
-#include "ui/OcrDialog.h"
+#include "ui/OcrTranslateController.h"
+#include "ui/TranslatedOverlayDialog.h"
 #include "core/ComponentPaths.h"
 #include "ShortcutSheet.h"
 #include "ui/HintBubble.h"
@@ -676,6 +677,7 @@ CaptureOverlay::CaptureOverlay(QWidget *parent)
     connect(m_toolbar, &AnnotationToolbar::eyedropperRequested, this, &CaptureOverlay::onEyedropperRequested);
     connect(m_toolbar, &AnnotationToolbar::lockToggled, this, &CaptureOverlay::onSelectionLockToggled);
     connect(m_toolbar, &AnnotationToolbar::ocrRequested, this, &CaptureOverlay::onOcrRequested);
+    connect(m_toolbar, &AnnotationToolbar::ocrTranslateRequested, this, &CaptureOverlay::onOcrTranslateRequested);
     connect(m_toolbar, &AnnotationToolbar::uploadRequested, this, &CaptureOverlay::onUploadRequested);
     connect(m_toolbar, &AnnotationToolbar::googleLensRequested, this, &CaptureOverlay::onGoogleLensRequested);
     connect(m_toolbar, &AnnotationToolbar::gifRequested, this, &CaptureOverlay::onGifRequested);
@@ -3569,6 +3571,7 @@ void CaptureOverlay::finishCapture()
     if (shouldComposeCaptureResult(recordingMode))
         result = getSelectedPixmap();
     hide();
+    TranslatedOverlayDialog::closeAll(); // overlay перевода не должен переживать сценарий захвата
     m_selectionComplete = false;
     m_isSelecting = false;
     m_selectionAnchorScreenRect = QRect();
@@ -3602,6 +3605,7 @@ void CaptureOverlay::finishCapture()
 void CaptureOverlay::cancelCapture()
 {
     hide();
+    TranslatedOverlayDialog::closeAll(); // иначе «призрак» overlay остаётся на экране
     m_selectionComplete = false;
     m_isSelecting = false;
     m_selectionAnchorScreenRect = QRect();
@@ -3984,11 +3988,27 @@ void CaptureOverlay::onOcrRequested()
 {
     QPixmap pix = getSelectedPixmap();
     if (pix.isNull()) return;
-    // OcrDialog restores the saved OCR language itself.
     hideForModalDialog();
-    OcrDialog dlg(pix);
-    dlg.exec();
-    restoreAfterModalDialog();
+    // Без окна OCR: распознаём и показываем overlay с распознанным текстом.
+    auto *task = new OcrTranslateController(pix, selectedDisplayRect(), this,
+                                            OcrTranslateController::Mode::TextOnly);
+    connect(task, &OcrTranslateController::finished, this, [this]() {
+        restoreAfterModalDialog();
+    });
+    task->start();
+}
+
+void CaptureOverlay::onOcrTranslateRequested()
+{
+    QPixmap pix = getSelectedPixmap();
+    if (pix.isNull()) return;
+    hideForModalDialog();
+    // Без окна OCR: распознаём, переводим и показываем overlay поверх выделения.
+    auto *task = new OcrTranslateController(pix, selectedDisplayRect(), this);
+    connect(task, &OcrTranslateController::finished, this, [this]() {
+        restoreAfterModalDialog();
+    });
+    task->start();
 }
 
 void CaptureOverlay::onUploadRequested()

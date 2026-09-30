@@ -25,6 +25,7 @@
 #include <QDir>
 #include <QDateTime>
 #include <QClipboard>
+#include <QMimeData>
 #include <QDesktopServices>
 #include <QGuiApplication>
 #include <QScreen>
@@ -59,6 +60,7 @@
 #include "ui/AboutDialog.h"
 #include "ui/ControlCenterDialog.h"
 #include "ui/FirstRunWizard.h"
+#include "ui/TranslatorDialog.h"
 #include "ui/OnboardingTips.h"
 
 #ifdef Q_OS_WIN
@@ -68,6 +70,7 @@
 #include <shlobj.h>
 #include <shlguid.h>
 #endif
+#include <QThread>
 
 namespace {
 
@@ -437,6 +440,113 @@ public slots:
         if (m_updateManager)
             m_updateManager->installUpdate();
     }
+
+    void onTranslatorRequested()
+    {
+        if (!m_translatorDialog) {
+            m_translatorDialog = new TranslatorDialog();
+            m_translatorDialog->setAttribute(Qt::WA_DeleteOnClose);
+            connect(m_translatorDialog, &QDialog::destroyed, this, [this]() {
+                m_translatorDialog = nullptr;
+            });
+        }
+        // Подставляем выделенный в другом приложении текст: эмулируем Ctrl+C
+        // в активном окне и читаем буфер обмена. Старый буфер восстанавливаем,
+        // если выделение не удалось захватить. При вызове из трея фокус уже
+        // у трея — активируем окно, которое было в фокусе до открытия меню.
+        const bool fromTray = sender() && qobject_cast<QAction *>(sender());
+        QString selected = grabSelectedTextFromScreen(
+#ifdef Q_OS_WIN
+            fromTray ? m_foregroundBeforeTrayMenu : nullptr
+#else
+            nullptr
+#endif
+        );
+        if (!selected.trimmed().isEmpty())
+            m_translatorDialog->setSourceText(selected);
+        else if (const QMimeData *mime = QGuiApplication::clipboard()->mimeData())
+            m_translatorDialog->prefillIfEmpty(mime->hasText() ? mime->text() : QString());
+        m_translatorDialog->show();
+        m_translatorDialog->raise();
+        m_translatorDialog->activateWindow();
+    }
+
+#ifdef Q_OS_WIN
+    // Эмуляция Ctrl+C (или Ctrl+Insert) в окне, которое сейчас в фокусе,
+    // с ожиданием обновления буфера обмена. Возвращает захваченный текст
+    // или пустую строку (буфер восстановлен).
+    QString grabSelectedTextFromScreen(void *preferredWindow)
+    {
+        QClipboard *clip = QGuiApplication::clipboard();
+        const bool hadText = clip->mimeData() && clip->mimeData()->hasText();
+        const QString oldText = hadText ? clip->text() : QString();
+        const bool hadImage = clip->mimeData() && clip->mimeData()->hasImage();
+        const QPixmap oldPixmap = hadImage ? clip->pixmap() : QPixmap();
+        const DWORD seqBefore = GetClipboardSequenceNumber();
+
+        // Когда вызов идёт по горячей клавише, пользователь ещё физически
+        // держит её модификаторы. Если послать Ctrl+C в этот момент, Shift
+        // (если он в сочетании) превратит его в Ctrl+Shift+C — в браузерах
+        // это «исследовать элемент» / консоль. Ждём отпускания.
+        QElapsedTimer releaseTimer;
+        releaseTimer.start();
+        while (releaseTimer.elapsed() < 900) {
+            if (!(GetAsyncKeyState(VK_CONTROL) & 0x8000)
+                && !(GetAsyncKeyState(VK_SHIFT) & 0x8000)
+                && !(GetAsyncKeyState(VK_MENU) & 0x8000))
+                break;
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+            QThread::msleep(20);
+        }
+
+        if (preferredWindow && IsWindow(static_cast<HWND>(preferredWindow))
+            && GetForegroundWindow() != static_cast<HWND>(preferredWindow)) {
+            SetForegroundWindow(static_cast<HWND>(preferredWindow));
+            QThread::msleep(120);
+        }
+
+        auto sendCopyCombo = [](bool useInsert) {
+            INPUT inputs[4] = {};
+            const WORD copyKey = useInsert ? VK_INSERT : 0x43; // 'C'
+            for (int i = 0; i < 4; ++i) {
+                inputs[i].type = INPUT_KEYBOARD;
+                inputs[i].ki.wVk = (i == 0 || i == 3) ? VK_CONTROL : copyKey;
+                inputs[i].ki.dwFlags = (i >= 2) ? KEYEVENTF_KEYUP : 0;
+            }
+            SendInput(4, inputs, sizeof(INPUT));
+        };
+
+        for (int attempt = 0; attempt < 2; ++attempt) {
+            sendCopyCombo(attempt == 1); // сначала Ctrl+C, затем Ctrl+Insert
+            QElapsedTimer timer;
+            timer.start();
+            while (timer.elapsed() < 700) {
+                QCoreApplication::processEvents(QEventLoop::AllEvents, 40);
+                QThread::msleep(30);
+                if (GetClipboardSequenceNumber() == seqBefore)
+                    continue;
+                const QString text = clip->text();
+                if (!text.isEmpty())
+                    return text;
+            }
+        }
+
+        if (hadText)
+            clip->setText(oldText);
+        else if (hadImage)
+            clip->setPixmap(oldPixmap);
+        else
+            clip->clear();
+        return QString();
+    }
+#else
+    QString grabSelectedTextFromScreen(void *preferredWindow)
+    {
+        Q_UNUSED(preferredWindow);
+        const QMimeData *mime = QGuiApplication::clipboard()->mimeData();
+        return mime && mime->hasText() ? mime->text() : QString();
+    }
+#endif
 
     void onSettingsRequested()
     {
@@ -1006,6 +1116,16 @@ private:
             m_trayMenu->addSeparator();
         }
 
+        QAction *translatorAction = m_trayMenu->addAction(
+            trayIcon(":/icons/translate.svg"), TranslationManager::trayTranslator());
+        translatorAction->setToolTip(QStringLiteral("%1 (%2)").arg(
+            TranslationManager::trayTranslator(),
+            HotkeyManager::shortcutText(
+                static_cast<UINT>(hotkeySettings.value("translatorHotkeyModifiers", 0).toUInt()),
+                static_cast<UINT>(hotkeySettings.value("translatorHotkeyVKey", 0).toUInt()))));
+        connect(translatorAction, &QAction::triggered, this, &EShotApp::onTranslatorRequested);
+        m_trayMenu->addSeparator();
+
         QAction *settingsAction = m_trayMenu->addAction(trayIcon(":/icons/gear.svg"), TranslationManager::traySettings());
         connect(settingsAction, &QAction::triggered, this, &EShotApp::onSettingsRequested);
         QAction *aboutAction = m_trayMenu->addAction(trayIcon(":/icons/pen.svg"), TranslationManager::trayAbout());
@@ -1025,6 +1145,13 @@ private:
 
         m_trayMenu = new QMenu();
         m_trayMenu->setToolTipsVisible(true);
+#ifdef Q_OS_WIN
+        // Запоминаем окно в фокусе до того, как меню трея его отберёт —
+        // нужно для захвата выделенного текста при вызове переводчика из трея.
+        connect(m_trayMenu, &QMenu::aboutToShow, this, [this]() {
+            m_foregroundBeforeTrayMenu = GetForegroundWindow();
+        });
+#endif
         m_trayMenu->setStyleSheet(QStringLiteral(
             "QMenu {"
             "  background: #2b2b2b;"
@@ -1085,6 +1212,8 @@ private:
                 this, &EShotApp::onRecordVideoRequested);
         connect(&HotkeyManager::instance(), &HotkeyManager::windowCaptureRequested,
                 this, &EShotApp::onWindowCaptureRequested);
+        connect(&HotkeyManager::instance(), &HotkeyManager::translatorRequested,
+                this, &EShotApp::onTranslatorRequested);
         connect(&HotkeyManager::instance(), &HotkeyManager::recordingPauseRequested, this, [this]() {
             if (m_videoRecorder && m_videoRecorder->isRecording()) {
                 if (m_videoRecorder->isPaused()) m_videoRecorder->resume();
@@ -1186,6 +1315,10 @@ private:
 
     QSystemTrayIcon *m_trayIcon = nullptr;
     QMenu *m_trayMenu = nullptr;
+    TranslatorDialog *m_translatorDialog = nullptr;
+#ifdef Q_OS_WIN
+    HWND m_foregroundBeforeTrayMenu = nullptr; // окно, из которого открыли меню трея
+#endif
     UpdateManager *m_updateManager = nullptr;
     CaptureOverlay *m_overlay = nullptr;
     bool m_showNotifications = true;

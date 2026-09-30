@@ -9,11 +9,13 @@
 #include <QStandardPaths>
 #include <QCoreApplication>
 #include <QHash>
+#include <QMap>
 #include <QPointer>
 #include <QDateTime>
 #include <QDebug>
 #include <QPixmap>
 #include <atomic>
+#include <algorithm>
 
 QString OcrEngine::tesseractPath() {
     QStringList candidates;
@@ -139,6 +141,16 @@ OcrEngine::~OcrEngine()
 
 void OcrEngine::recognize(const QPixmap &pixmap, const QString &languageTag,
                           const QString &preferredLanguageTag) {
+    recognizeImpl(pixmap, languageTag, preferredLanguageTag, false);
+}
+
+void OcrEngine::recognizeWithLayout(const QPixmap &pixmap, const QString &languageTag,
+                                    const QString &preferredLanguageTag) {
+    recognizeImpl(pixmap, languageTag, preferredLanguageTag, true);
+}
+
+void OcrEngine::recognizeImpl(const QPixmap &pixmap, const QString &languageTag,
+                              const QString &preferredLanguageTag, bool withLayout) {
     if (pixmap.isNull()) {
         emit failed(QStringLiteral("empty image"));
         return;
@@ -175,15 +187,18 @@ void OcrEngine::recognize(const QPixmap &pixmap, const QString &languageTag,
         QString preferred = mapLanguageTag(preferredLanguageTag);
         if (preferredLanguageTag.trimmed().isEmpty())
             preferred = QStringLiteral("eng");
-        startAutomaticRecognition(imagePath, td, preferred);
+        // Автоопределение языка работает и с layout-режимом: сначала определяем
+        // скрипт (OSD/список паков), потом распознаём TSV с выбранными языками.
+        startAutomaticRecognition(imagePath, td, preferred, withLayout);
     } else {
-        startRecognitionProcess(imagePath, td, mapLanguageTag(languageTag));
+        startRecognitionProcess(imagePath, td, mapLanguageTag(languageTag), withLayout);
     }
 }
 
 void OcrEngine::startAutomaticRecognition(const QString &imagePath,
                                           const QString &tessdataDirectory,
-                                          const QString &preferredLanguage)
+                                          const QString &preferredLanguage,
+                                          bool withLayout)
 {
     const QStringList installed = installedOcrLanguageCodes(tessdataDirectory);
     if (installed.isEmpty()) {
@@ -192,12 +207,12 @@ void OcrEngine::startAutomaticRecognition(const QString &imagePath,
     }
 
     auto continueWithScript = [this, imagePath, tessdataDirectory, installed,
-                               preferredLanguage](const QString &script) {
+                               preferredLanguage, withLayout](const QString &script) {
         const QString languages = automaticOcrLanguageArgument(
             installed, script, preferredLanguage);
         qInfo() << "[EShot] OCR automatic selection script=" << script
                 << "languages=" << languages;
-        startRecognitionProcess(imagePath, tessdataDirectory, languages);
+        startRecognitionProcess(imagePath, tessdataDirectory, languages, withLayout);
     };
 
     if (!ocrScriptDetectionAvailable(tessdataDirectory)) {
@@ -253,7 +268,8 @@ void OcrEngine::startAutomaticRecognition(const QString &imagePath,
 
 void OcrEngine::startRecognitionProcess(const QString &imagePath,
                                         const QString &tessdataDirectory,
-                                        const QString &languageArgument)
+                                        const QString &languageArgument,
+                                        bool withLayout)
 {
     if (languageArgument.trimmed().isEmpty()) {
         failAndRemoveImage(imagePath, QStringLiteral("No usable OCR language pack is installed"));
@@ -270,14 +286,48 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
         qWarning() << "[EShot] OCR process error:" << err;
     });
 
+    QString tsvPath;
+
     connect(m_proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, self, imagePath](int exitCode, QProcess::ExitStatus status) {
+            this, [this, self, imagePath, withLayout, tsvPath](int exitCode, QProcess::ExitStatus status) {
         if (!self) {
             if (QFile::exists(imagePath)) QFile::remove(imagePath);
             return;
         }
-        const QString outText = QString::fromUtf8(m_proc->readAllStandardOutput()).trimmed();
+        QString outText = QString::fromUtf8(m_proc->readAllStandardOutput()).trimmed();
         const QString errText = QString::fromUtf8(m_proc->readAllStandardError()).trimmed();
+        if (withLayout) {
+            QStringList candidates;
+            candidates << tsvPath
+                       << (imagePath + QStringLiteral(".tsv"))
+                       << (QStringLiteral("stdout.tsv"));
+            if (!outText.isEmpty()) {
+                // stdout already has TSV in some builds; nothing to do.
+            } else {
+                for (const QString &candidate : candidates) {
+                    QFile tsv(candidate);
+                    if (tsv.exists() && tsv.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                        outText = QString::fromUtf8(tsv.readAll()).trimmed();
+                        tsv.remove();
+                        break;
+                    }
+                }
+            }
+            if (outText.isEmpty()) {
+                // Last resort: find the newest temp eshot_ocr_*.tsv and use it.
+                const QString tempDirPath = QFileInfo(imagePath).absolutePath();
+                const QFileInfoList tsvFiles = QDir(tempDirPath).entryInfoList(
+                    QStringList() << QStringLiteral("eshot_ocr_*.tsv"),
+                    QDir::Files, QDir::Time);
+                if (!tsvFiles.isEmpty()) {
+                    QFile tsv(tsvFiles.first().absoluteFilePath());
+                    if (tsv.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                        outText = QString::fromUtf8(tsv.readAll()).trimmed();
+                    }
+                    tsv.remove();
+                }
+            }
+        }
         QFile::remove(imagePath);
         m_pendingFiles.remove(imagePath);
         m_proc->deleteLater();
@@ -291,10 +341,59 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
             return;
         }
         if (outText.isEmpty()) {
+            if (!errText.isEmpty()) {
+                emit failed(QStringLiteral("Tesseract: ") + errText.left(400));
+            } else {
+                emit failed(QStringLiteral("No text recognized"));
+            }
+            return;
+        }
+
+        if (!withLayout) {
+            emit textReady(outText);
+            return;
+        }
+
+        // Tesseract TSV: level page/block/par/line/word. Group words into lines.
+        QVector<OcrTextLine> lines;
+        QMap<QString, OcrTextLine> grouped;
+        const QStringList rows = outText.split(QLatin1Char('\n'));
+        for (const QString &row : rows) {
+            const QStringList cols = row.split(QLatin1Char('	'));
+            if (cols.size() < 12) continue;
+            if (cols.at(0).trimmed() != QStringLiteral("5")) continue;
+            bool okLeft = false, okTop = false, okWidth = false, okHeight = false;
+            const int left = cols.at(6).toInt(&okLeft);
+            const int top = cols.at(7).toInt(&okTop);
+            const int width = cols.at(8).toInt(&okWidth);
+            const int height = cols.at(9).toInt(&okHeight);
+            const QString word = cols.at(11);
+            if (!okLeft || !okTop || !okWidth || !okHeight || word.trimmed().isEmpty()) continue;
+
+            const QString key = QStringLiteral("%1|%2|%3|%4")
+                .arg(cols.at(1), cols.at(2), cols.at(3), cols.at(4));
+            OcrTextLine &line = grouped[key];
+            if (line.rect.isNull()) line.rect = QRect(left, top, width, height);
+            else line.rect = line.rect.united(QRect(left, top, width, height));
+            if (!line.text.isEmpty()) line.text += QLatin1Char(' ');
+            line.text += word;
+        }
+        for (const OcrTextLine &line : std::as_const(grouped)) {
+            if (!line.text.trimmed().isEmpty()) lines << line;
+        }
+        std::sort(lines.begin(), lines.end(), [](const OcrTextLine &a, const OcrTextLine &b) {
+            if (a.rect.top() == b.rect.top()) return a.rect.left() < b.rect.left();
+            return a.rect.top() < b.rect.top();
+        });
+
+        if (lines.isEmpty()) {
             emit failed(QStringLiteral("No text recognized"));
             return;
         }
-        emit textReady(outText);
+        QStringList textOnly;
+        for (const OcrTextLine &line : lines) textOnly << line.text;
+        emit textReady(textOnly.join(QLatin1Char('\n')));
+        emit linesReady(lines);
     });
 
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
@@ -303,10 +402,28 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
     m_proc->setProcessEnvironment(env);
 
     QStringList args;
-    args << QDir::toNativeSeparators(imagePath)
-         << QStringLiteral("stdout")
-         << QStringLiteral("-l") << languageArgument
-         << QStringLiteral("--psm") << QStringLiteral("6");
+    QString outputBase = imagePath;
+    if (outputBase.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
+        outputBase.chop(4);
+    }
+    if (withLayout) {
+        // Tesseract writes TSV to "<outputbase>.tsv" instead of stdout.
+        // Use an extensionless temp outputbase, then read/delete the TSV file.
+        // NB: config var instead of the "tsv" config file — configs/tsv отсутствует
+        // в многих установках Tesseract (system, пакеты EShot), из-за чего OCR
+        // целиком падает с "read_params_file: Can't open tsv".
+        tsvPath = outputBase + QStringLiteral(".tsv");
+        args << QDir::toNativeSeparators(imagePath)
+             << QDir::toNativeSeparators(outputBase)
+             << QStringLiteral("-l") << languageArgument
+             << QStringLiteral("--psm") << QStringLiteral("6")
+             << QStringLiteral("-c") << QStringLiteral("tessedit_create_tsv=1");
+    } else {
+        args << QDir::toNativeSeparators(imagePath)
+             << QStringLiteral("stdout")
+             << QStringLiteral("-l") << languageArgument
+             << QStringLiteral("--psm") << QStringLiteral("6");
+    }
     if (!tessdataDirectory.isEmpty()) {
         args << QStringLiteral("--tessdata-dir")
              << QDir::toNativeSeparators(tessdataDirectory);
