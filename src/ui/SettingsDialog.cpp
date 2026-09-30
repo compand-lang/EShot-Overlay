@@ -2626,7 +2626,8 @@ void SettingsDialog::onReset()
             MOD_CONTROL | MOD_ALT, 'X');
         HotkeyManager::instance().reRegisterActionHotkeys(
             0, 0, 0, 0, 0, 0,
-            defaultWindowCaptureModifiers(), defaultWindowCaptureVirtualKey());
+            defaultWindowCaptureModifiers(), defaultWindowCaptureVirtualKey(),
+            0, 0);
         TranslationManager::init();
         loadSettings();
     }
