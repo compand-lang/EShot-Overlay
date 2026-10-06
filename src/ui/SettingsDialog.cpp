@@ -16,6 +16,7 @@
 #endif
 #include "../core/OcrEngine.h"
 #include "../core/TranslationManager.h"
+#include "../core/TranslationClient.h"
 #include "../recording/AudioDevices.h"
 #include "../recording/LinuxRecordingSupport.h"
 #include "../recording/RecordingSettingsPolicy.h"
@@ -100,7 +101,7 @@ QStringList defaultAnnotationTools()
 
 QStringList defaultToolbarControls()
 {
-    return {"Color","Eyedropper","Lock","Undo","Redo","Ocr","Upload","GoogleLens","Gif","Video"};
+    return {"Color","Eyedropper","Lock","BlurIntensity","Undo","Redo","Ocr","OcrTranslate","Upload","GoogleLens","Gif","Video"};
 }
 
 struct OverlayShortcutDef {
@@ -510,6 +511,62 @@ QWidget* SettingsDialog::createGeneralTab()
     langLayout->addWidget(m_langCombo);
     langLayout->addStretch();
     layout->addWidget(langGroup);
+
+    // Translation provider (screen OCR overlay)
+    QGroupBox *translationGroup = new QGroupBox(QStringLiteral("Translation (OCR overlay)"));
+    QFormLayout *translationLayout = new QFormLayout(translationGroup);
+
+    m_translationProviderCombo = new QComboBox(translationGroup);
+    for (const QString &id : TranslationClient::providerIds()) {
+        m_translationProviderCombo->addItem(
+            TranslationClient::providerDisplayName(TranslationClient::providerFromId(id)), id);
+    }
+    translationLayout->addRow(QStringLiteral("Provider:"), m_translationProviderCombo);
+
+    m_translationTargetCombo = new QComboBox(translationGroup);
+    const QPair<const char *, const char *> translationTargets[] = {
+        {"Russian", "ru"},   {"English", "en"}, {"Turkish", "tr"},
+        {"German", "de"},    {"French", "fr"},  {"Spanish", "es"},
+        {"Japanese", "ja"},  {"Chinese", "zh"},
+    };
+    for (const auto &target : translationTargets)
+        m_translationTargetCombo->addItem(QString::fromLatin1(target.first),
+                                          QString::fromLatin1(target.second));
+    translationLayout->addRow(QStringLiteral("Target language:"), m_translationTargetCombo);
+
+    auto makeSecretEdit = [translationGroup](const QString &placeholder) {
+        QLineEdit *edit = new QLineEdit(translationGroup);
+        edit->setEchoMode(QLineEdit::Password);
+        edit->setPlaceholderText(placeholder);
+        return edit;
+    };
+    m_translationDeepLKeyEdit = makeSecretEdit(QStringLiteral("DeepL API key"));
+    translationLayout->addRow(QStringLiteral("DeepL API key:"), m_translationDeepLKeyEdit);
+
+    m_translationLibreUrlEdit = new QLineEdit(translationGroup);
+    m_translationLibreUrlEdit->setPlaceholderText(QStringLiteral("http://localhost:5000"));
+    translationLayout->addRow(QStringLiteral("LibreTranslate URL:"), m_translationLibreUrlEdit);
+    m_translationLibreKeyEdit = makeSecretEdit(QStringLiteral("optional API key"));
+    translationLayout->addRow(QStringLiteral("LibreTranslate API key:"), m_translationLibreKeyEdit);
+
+    m_translationCustomUrlEdit = new QLineEdit(translationGroup);
+    m_translationCustomUrlEdit->setPlaceholderText(
+        QStringLiteral("https://api.example.com/v1/chat/completions"));
+    translationLayout->addRow(QStringLiteral("Custom endpoint URL:"), m_translationCustomUrlEdit);
+    m_translationCustomKeyEdit = makeSecretEdit(QStringLiteral("optional Bearer token"));
+    translationLayout->addRow(QStringLiteral("Custom API key:"), m_translationCustomKeyEdit);
+
+    QLabel *translationHint = new QLabel(
+        QStringLiteral("Free Google/Yandex endpoints are unofficial and may stop working. "
+                       "Keys are stored locally in app settings."),
+        translationGroup);
+    translationHint->setWordWrap(true);
+    translationHint->setStyleSheet(QStringLiteral("color: #999; font-size: 11px;"));
+    translationLayout->addRow(translationHint);
+
+    connect(m_translationProviderCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &SettingsDialog::onTranslationProviderChanged);
+    layout->addWidget(translationGroup);
 
     // Save directory
     QGroupBox *pathGroup = new QGroupBox(TranslationManager::saveDir());
@@ -1143,6 +1200,7 @@ QWidget* SettingsDialog::createInterfaceTab()
         {"Undo",          TranslationManager::toolUndo(),                     ":/icons/undo.svg"},
         {"Redo",          TranslationManager::toolRedo(),                     ":/icons/redo.svg"},
         {"Ocr",           TranslationManager::actionOcr(),                    ":/icons/ocr.svg"},
+        {"OcrTranslate",  QStringLiteral("Перевод текста (OCR overlay)"),   ":/icons/translate.svg"},
         {"Upload",        TranslationManager::uploadToService(),              ":/icons/upload.svg"},
         {"GoogleLens",    TranslationManager::visualSearchAction(),           ":/icons/search.svg"},
         {"Gif",           TranslationManager::recordingStartTitle(),          ":/icons/gif.svg"},
@@ -1328,6 +1386,7 @@ QWidget* SettingsDialog::createHotkeyTab()
     m_instantCaptureHotkeyEdit = makeRecordingHotkeyEdit();
     m_gifCaptureHotkeyEdit = makeRecordingHotkeyEdit();
     m_videoCaptureHotkeyEdit = makeRecordingHotkeyEdit();
+    m_translatorHotkeyEdit = makeRecordingHotkeyEdit();
 #ifdef Q_OS_WIN
     m_windowCaptureHotkeyEdit = makeRecordingHotkeyEdit();
 #endif
@@ -1345,12 +1404,20 @@ QWidget* SettingsDialog::createHotkeyTab()
     addActionHotkeyRow(HotkeyManager::HOTKEY_WINDOW_CAPTURE, TranslationManager::tr("hotkeyWindowLabel"),
                        TranslationManager::trayWindowCapture(), m_windowCaptureHotkeyEdit);
 #endif
+<<<<<<< ours
+    actionHotkeyLayout->addRow(uiLabel("Instant bolge:", "Instant region:"), m_instantCaptureHotkeyEdit);
+    actionHotkeyLayout->addRow(QStringLiteral("GIF:"), m_gifCaptureHotkeyEdit);
+    actionHotkeyLayout->addRow(uiLabel("Video:", "Video:"), m_videoCaptureHotkeyEdit);
+    m_translatorHotkeyEdit->setToolTip(uiLabel("Bos birakilirsa kapali kalir. Cevirmen penceresini acar.", "Leave empty to disable. Opens the translator window."));
+    actionHotkeyLayout->addRow(uiLabel("Cevirmen:", "Translator:"), m_translatorHotkeyEdit);
+=======
     addActionHotkeyRow(HotkeyManager::HOTKEY_INSTANT_CAPTURE, TranslationManager::tr("hotkeyInstantRegionLabel"),
                        labelName(TranslationManager::tr("hotkeyInstantRegionLabel")), m_instantCaptureHotkeyEdit);
     addActionHotkeyRow(HotkeyManager::HOTKEY_GIF_CAPTURE, QStringLiteral("GIF:"),
                        QStringLiteral("GIF"), m_gifCaptureHotkeyEdit);
     addActionHotkeyRow(HotkeyManager::HOTKEY_VIDEO_CAPTURE, TranslationManager::tr("hotkeyVideoLabel"),
                        labelName(TranslationManager::tr("hotkeyVideoLabel")), m_videoCaptureHotkeyEdit);
+>>>>>>> theirs
     gl->addWidget(actionGroup);
 
     QGroupBox *recordingGroup = new QGroupBox(TranslationManager::videoRecordingTitle());
@@ -1920,6 +1987,23 @@ void SettingsDialog::onDeleteSelectedOcr()
     refreshPackageStatus();
 }
 
+void SettingsDialog::onTranslationProviderChanged()
+{
+    if (!m_translationProviderCombo)
+        return;
+    auto *form = qobject_cast<QFormLayout *>(m_translationProviderCombo->parentWidget()
+                                                 ? m_translationProviderCombo->parentWidget()->layout()
+                                                 : nullptr);
+    if (!form)
+        return;
+    const QString id = m_translationProviderCombo->currentData().toString();
+    form->setRowVisible(m_translationDeepLKeyEdit, id == QStringLiteral("deepl_api"));
+    form->setRowVisible(m_translationLibreUrlEdit, id == QStringLiteral("libretranslate"));
+    form->setRowVisible(m_translationLibreKeyEdit, id == QStringLiteral("libretranslate"));
+    form->setRowVisible(m_translationCustomUrlEdit, id == QStringLiteral("custom_url"));
+    form->setRowVisible(m_translationCustomKeyEdit, id == QStringLiteral("custom_url"));
+}
+
 void SettingsDialog::loadSettings()
 {
     QString defPath = ComponentPaths::defaultSaveDirectory();
@@ -1972,6 +2056,34 @@ void SettingsDialog::loadSettings()
     QString lang = (langInt >= 0 && langInt <= 7) ? langCodes[langInt] : "en";
     int li = m_langCombo->findData(lang);
     if (li >= 0) m_langCombo->setCurrentIndex(li);
+
+    if (m_translationProviderCombo) {
+        const QString providerId = m_settings->value("translation/provider",
+                                                     QStringLiteral("google_free")).toString();
+        int pi = m_translationProviderCombo->findData(providerId);
+        if (pi < 0) pi = 0;
+        const QSignalBlocker blocker(m_translationProviderCombo);
+        m_translationProviderCombo->setCurrentIndex(pi);
+        onTranslationProviderChanged();
+    }
+    if (m_translationTargetCombo) {
+        const QString target = m_settings->value("translation/targetLanguage",
+                                                 QStringLiteral("ru")).toString();
+        int ti = m_translationTargetCombo->findData(target);
+        if (ti < 0 && target.size() >= 2)
+            ti = m_translationTargetCombo->findData(target.left(2));
+        if (ti >= 0) m_translationTargetCombo->setCurrentIndex(ti);
+    }
+    if (m_translationDeepLKeyEdit)
+        m_translationDeepLKeyEdit->setText(m_settings->value("translation/deeplApiKey").toString());
+    if (m_translationLibreUrlEdit)
+        m_translationLibreUrlEdit->setText(m_settings->value("translation/libreUrl").toString());
+    if (m_translationLibreKeyEdit)
+        m_translationLibreKeyEdit->setText(m_settings->value("translation/libreApiKey").toString());
+    if (m_translationCustomUrlEdit)
+        m_translationCustomUrlEdit->setText(m_settings->value("translation/customUrl").toString());
+    if (m_translationCustomKeyEdit)
+        m_translationCustomKeyEdit->setText(m_settings->value("translation/customApiKey").toString());
 
     QString fmt = m_settings->value("imageFormat", "PNG").toString();
     int fi = m_formatCombo->findData(fmt);
@@ -2115,6 +2227,10 @@ void SettingsDialog::loadSettings()
         m_windowCaptureHotkeyEdit->setKeySequence(win32ToKeySequence(
             static_cast<UINT>(m_settings->value("windowCaptureHotkeyModifiers", defaultWindowCaptureModifiers()).toUInt()),
             static_cast<UINT>(m_settings->value("windowCaptureHotkeyVKey", defaultWindowCaptureVirtualKey()).toUInt())));
+    if (m_translatorHotkeyEdit)
+        m_translatorHotkeyEdit->setKeySequence(win32ToKeySequence(
+            static_cast<UINT>(m_settings->value("translatorHotkeyModifiers", 0).toUInt()),
+            static_cast<UINT>(m_settings->value("translatorHotkeyVKey", 0).toUInt())));
     for (const auto &def : overlayShortcutDefaults()) {
         if (QKeySequenceEdit *edit = m_overlayHotkeyEdits.value(def.key, nullptr)) {
             edit->setKeySequence(QKeySequence(m_settings->value(QStringLiteral("overlayShortcut/%1").arg(def.key),
@@ -2387,10 +2503,12 @@ void SettingsDialog::onSave()
     UINT gifMod = 0, gifVKey = 0;
     UINT videoMod = 0, videoVKey = 0;
     UINT windowMod = 0, windowVKey = 0;
+    UINT translatorMod = 0, translatorVKey = 0;
     if (!optionalHotkey(m_instantCaptureHotkeyEdit, instantMod, instantVKey) ||
         !optionalHotkey(m_gifCaptureHotkeyEdit, gifMod, gifVKey) ||
         !optionalHotkey(m_videoCaptureHotkeyEdit, videoMod, videoVKey) ||
-        !optionalHotkey(m_windowCaptureHotkeyEdit, windowMod, windowVKey)) {
+        !optionalHotkey(m_windowCaptureHotkeyEdit, windowMod, windowVKey) ||
+        !optionalHotkey(m_translatorHotkeyEdit, translatorMod, translatorVKey)) {
         QMessageBox::warning(this, TranslationManager::errInvalidHotkeyTitle(), TranslationManager::errInvalidHotkey());
         return;
     }
@@ -2413,6 +2531,16 @@ void SettingsDialog::onSave()
                                static_cast<quint32>(m_settings->value("videoCaptureHotkeyVKey", 0).toUInt())}) ||
         settingsHotkeyChanged({windowMod, windowVKey},
                               {static_cast<quint32>(m_settings->value("windowCaptureHotkeyModifiers", defaultWindowCaptureModifiers()).toUInt()),
+<<<<<<< ours
+                               static_cast<quint32>(m_settings->value("windowCaptureHotkeyVKey", defaultWindowCaptureVirtualKey()).toUInt())}) ||
+        settingsHotkeyChanged({translatorMod, translatorVKey},
+                              {static_cast<quint32>(m_settings->value("translatorHotkeyModifiers", 0).toUInt()),
+                               static_cast<quint32>(m_settings->value("translatorHotkeyVKey", 0).toUInt())});
+    // Apply the autostart change before persisting anything: if the Run key
+    // update fails, no partial settings are written (onSave partial
+    // success guard).
+    if (m_autoStartCheck->isChecked() != m_loadedAutoStart && !setAutoStartEnabled(m_autoStartCheck->isChecked())) {
+=======
                                static_cast<quint32>(m_settings->value("windowCaptureHotkeyVKey", defaultWindowCaptureVirtualKey()).toUInt())});
     // Apply startup changes before persisting anything: if they fail, no
     // partial settings are written (onSave partial success guard).
@@ -2431,6 +2559,7 @@ void SettingsDialog::onSave()
     const bool wantRunKey = wantAutoStart && !wantElevated;
     const bool hadRunKey = m_loadedAutoStart && !m_loadedRunElevated;
     if (wantRunKey != hadRunKey && !setAutoStartEnabled(wantRunKey)) {
+>>>>>>> theirs
         QMessageBox::warning(this, TranslationManager::errTitle(),
                              TranslationManager::autoStartSaveFailed());
         return;
@@ -2503,7 +2632,7 @@ void SettingsDialog::onSave()
 
     if (actionHotkeysChanged && !HotkeyManager::instance().reRegisterActionHotkeys(
             instantMod, instantVKey, gifMod, gifVKey, videoMod, videoVKey,
-            windowMod, windowVKey)) {
+            windowMod, windowVKey, translatorMod, translatorVKey)) {
         QMessageBox::warning(
             this,
             TranslationManager::errInvalidHotkeyTitle(),
@@ -2540,6 +2669,22 @@ void SettingsDialog::onSave()
     m_settings->setValue("filenamePattern",    m_filenamePatternEdit->text());
     m_settings->setValue("autoStart",          m_autoStartCheck->isChecked());
     m_settings->setValue("showNotifications",  m_showNotificationsCheck->isChecked());
+    if (m_translationProviderCombo)
+        m_settings->setValue("translation/provider",
+                             m_translationProviderCombo->currentData().toString());
+    if (m_translationTargetCombo)
+        m_settings->setValue("translation/targetLanguage",
+                             m_translationTargetCombo->currentData().toString());
+    if (m_translationDeepLKeyEdit)
+        m_settings->setValue("translation/deeplApiKey", m_translationDeepLKeyEdit->text().trimmed());
+    if (m_translationLibreUrlEdit)
+        m_settings->setValue("translation/libreUrl", m_translationLibreUrlEdit->text().trimmed());
+    if (m_translationLibreKeyEdit)
+        m_settings->setValue("translation/libreApiKey", m_translationLibreKeyEdit->text().trimmed());
+    if (m_translationCustomUrlEdit)
+        m_settings->setValue("translation/customUrl", m_translationCustomUrlEdit->text().trimmed());
+    if (m_translationCustomKeyEdit)
+        m_settings->setValue("translation/customApiKey", m_translationCustomKeyEdit->text().trimmed());
     if (m_notifyCopyCheck) m_settings->setValue("notifyCopy", m_notifyCopyCheck->isChecked());
     if (m_notifySaveCheck) m_settings->setValue("notifySave", m_notifySaveCheck->isChecked());
     if (m_notifyGifCheck) m_settings->setValue("notifyGif", m_notifyGifCheck->isChecked());
@@ -2616,6 +2761,8 @@ void SettingsDialog::onSave()
     m_settings->setValue("videoCaptureHotkeyVKey",        videoVKey);
     m_settings->setValue("windowCaptureHotkeyModifiers", windowMod);
     m_settings->setValue("windowCaptureHotkeyVKey",      windowVKey);
+    m_settings->setValue("translatorHotkeyModifiers",    translatorMod);
+    m_settings->setValue("translatorHotkeyVKey",         translatorVKey);
     for (auto it = m_overlayHotkeyEdits.constBegin(); it != m_overlayHotkeyEdits.constEnd(); ++it) {
         if (it.value())
             m_settings->setValue(QStringLiteral("overlayShortcut/%1").arg(it.key()),
@@ -2693,7 +2840,8 @@ void SettingsDialog::onReset()
             MOD_CONTROL | MOD_ALT, 'X');
         HotkeyManager::instance().reRegisterActionHotkeys(
             0, 0, 0, 0, 0, 0,
-            defaultWindowCaptureModifiers(), defaultWindowCaptureVirtualKey());
+            defaultWindowCaptureModifiers(), defaultWindowCaptureVirtualKey(),
+            0, 0);
         TranslationManager::init();
         loadSettings();
     }
@@ -2708,6 +2856,20 @@ void SettingsDialog::onExportSettings()
 
     QJsonObject obj;
     obj["language"] = m_langCombo->currentData().toString();
+    if (m_translationProviderCombo)
+        obj["translationProvider"] = m_translationProviderCombo->currentData().toString();
+    if (m_translationTargetCombo)
+        obj["translationTargetLanguage"] = m_translationTargetCombo->currentData().toString();
+    if (m_translationDeepLKeyEdit)
+        obj["translationDeepLApiKey"] = m_translationDeepLKeyEdit->text();
+    if (m_translationLibreUrlEdit)
+        obj["translationLibreUrl"] = m_translationLibreUrlEdit->text();
+    if (m_translationLibreKeyEdit)
+        obj["translationLibreApiKey"] = m_translationLibreKeyEdit->text();
+    if (m_translationCustomUrlEdit)
+        obj["translationCustomUrl"] = m_translationCustomUrlEdit->text();
+    if (m_translationCustomKeyEdit)
+        obj["translationCustomApiKey"] = m_translationCustomKeyEdit->text();
     obj["savePath"] = m_savePathEdit->text();
     obj["screenshotSavePath"] = m_screenshotPathEdit ? m_screenshotPathEdit->text() : QString();
     obj["gifSavePath"] = m_gifPathEdit ? m_gifPathEdit->text() : QString();
@@ -2775,6 +2937,7 @@ void SettingsDialog::onExportSettings()
     appendHotkey("gifCaptureHotkeyModifiers", "gifCaptureHotkeyVKey", m_gifCaptureHotkeyEdit);
     appendHotkey("videoCaptureHotkeyModifiers", "videoCaptureHotkeyVKey", m_videoCaptureHotkeyEdit);
     appendHotkey("windowCaptureHotkeyModifiers", "windowCaptureHotkeyVKey", m_windowCaptureHotkeyEdit);
+    appendHotkey("translatorHotkeyModifiers", "translatorHotkeyVKey", m_translatorHotkeyEdit);
     obj["uploadProvider"] = m_importedUploadProvider.isValid()
         ? m_importedUploadProvider.toInt()
         : m_settings->value("uploadProvider", 0).toInt();
@@ -2852,6 +3015,24 @@ void SettingsDialog::onImportSettings()
         int li = m_langCombo->findData(obj["language"].toString());
         if (li >= 0) m_langCombo->setCurrentIndex(li);
     }
+    if (m_translationProviderCombo && obj.contains("translationProvider")) {
+        int pi = m_translationProviderCombo->findData(obj["translationProvider"].toString());
+        if (pi >= 0) m_translationProviderCombo->setCurrentIndex(pi);
+    }
+    if (m_translationTargetCombo && obj.contains("translationTargetLanguage")) {
+        int ti = m_translationTargetCombo->findData(obj["translationTargetLanguage"].toString());
+        if (ti >= 0) m_translationTargetCombo->setCurrentIndex(ti);
+    }
+    if (m_translationDeepLKeyEdit && obj.contains("translationDeepLApiKey"))
+        m_translationDeepLKeyEdit->setText(obj["translationDeepLApiKey"].toString());
+    if (m_translationLibreUrlEdit && obj.contains("translationLibreUrl"))
+        m_translationLibreUrlEdit->setText(obj["translationLibreUrl"].toString());
+    if (m_translationLibreKeyEdit && obj.contains("translationLibreApiKey"))
+        m_translationLibreKeyEdit->setText(obj["translationLibreApiKey"].toString());
+    if (m_translationCustomUrlEdit && obj.contains("translationCustomUrl"))
+        m_translationCustomUrlEdit->setText(obj["translationCustomUrl"].toString());
+    if (m_translationCustomKeyEdit && obj.contains("translationCustomApiKey"))
+        m_translationCustomKeyEdit->setText(obj["translationCustomApiKey"].toString());
     if (obj.contains("savePath")) m_savePathEdit->setText(obj["savePath"].toString());
     if (m_screenshotPathEdit && obj.contains("screenshotSavePath")) m_screenshotPathEdit->setText(obj["screenshotSavePath"].toString());
     if (m_gifPathEdit && obj.contains("gifSavePath")) m_gifPathEdit->setText(obj["gifSavePath"].toString());
@@ -2938,6 +3119,7 @@ void SettingsDialog::onImportSettings()
     importHotkey("gifCaptureHotkeyModifiers", "gifCaptureHotkeyVKey", m_gifCaptureHotkeyEdit);
     importHotkey("videoCaptureHotkeyModifiers", "videoCaptureHotkeyVKey", m_videoCaptureHotkeyEdit);
     importHotkey("windowCaptureHotkeyModifiers", "windowCaptureHotkeyVKey", m_windowCaptureHotkeyEdit);
+    importHotkey("translatorHotkeyModifiers", "translatorHotkeyVKey", m_translatorHotkeyEdit);
     if (obj.contains("uploadProvider"))
         m_importedUploadProvider = obj["uploadProvider"].toInt();
     if (obj.contains("visualSearchProvider") && m_visualSearchProviderCombo) {

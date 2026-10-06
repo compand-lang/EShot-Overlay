@@ -114,3 +114,5 @@ ROADMAP.md
 
 # Local Codex planning artifacts
 docs/superpowers/
+.porttmp/
+.port-base.bak

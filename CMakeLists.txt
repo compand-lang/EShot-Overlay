@@ -33,6 +33,7 @@ set(SOURCES
     src/core/HotkeySequence.cpp
     src/core/ApplicationInstanceCommand.cpp
     src/core/OcrEngine.cpp
+    src/core/TranslationClient.cpp
     src/core/OcrLanguageSelector.cpp
     src/core/LinuxPortalGlobalShortcuts.cpp
     src/core/LinuxPortalScreenCast.cpp
@@ -84,7 +85,9 @@ set(SOURCES
     src/ui/AboutDialog.cpp
     src/ui/ControlCenterDialog.cpp
     src/ui/FirstRunWizard.cpp
-    src/ui/OcrDialog.cpp
+    src/ui/OcrTranslateController.cpp
+    src/ui/TranslatedOverlayDialog.cpp
+    src/ui/TranslatorDialog.cpp
     src/ui/UploadDialog.cpp
     src/recording/GifEncoder.cpp
     src/recording/LinuxRecordingSupport.cpp
@@ -110,6 +113,7 @@ set(HEADERS
     src/core/ApplicationInstanceCommand.h
     src/core/PlatformHotkey.h
     src/core/OcrEngine.h
+    src/core/TranslationClient.h
     src/core/OcrLanguageSelector.h
     src/core/LinuxPortalGlobalShortcuts.h
     src/core/LinuxPortalScreenCast.h
@@ -161,7 +165,9 @@ set(HEADERS
     src/ui/AboutDialog.h
     src/ui/ControlCenterDialog.h
     src/ui/FirstRunWizard.h
-    src/ui/OcrDialog.h
+    src/ui/OcrTranslateController.h
+    src/ui/TranslatedOverlayDialog.h
+    src/ui/TranslatorDialog.h
     src/ui/UploadDialog.h
     src/recording/GifEncoder.h
     src/recording/LinuxRecordingSupport.h
@@ -391,6 +397,22 @@ if(BUILD_TESTING)
         SOURCES
             tests/SettingsTranslationTests.cpp
         LIBS Qt6::Core
+    )
+
+    eshot_add_test(eshot_translation_client_tests translation_client
+        SOURCES
+            tests/TranslationClientTests.cpp
+            src/core/TranslationClient.cpp
+            src/core/TranslationClient.h
+        LIBS Qt6::Core Qt6::Gui Qt6::Network
+    )
+
+    eshot_add_test(eshot_translated_overlay_dialog_tests translated_overlay_dialog
+        SOURCES
+            tests/TranslatedOverlayDialogTests.cpp
+            src/ui/TranslatedOverlayDialog.cpp
+            src/ui/TranslatedOverlayDialog.h
+        LIBS Qt6::Core Qt6::Gui Qt6::Widgets
     )
 
     eshot_add_test(eshot_capture_geometry_tests capture_geometry

@@ -274,6 +274,13 @@ HotkeyManager::HotkeyManager(QObject *parent) : QObject(parent)
         recordFailure(HOTKEY_VIDEO_CAPTURE, m_videoCaptureModifiers, m_videoCaptureVirtualKey);
     if (!registerHotkey(HOTKEY_WINDOW_CAPTURE, m_windowCaptureModifiers, m_windowCaptureVirtualKey)) {
         qWarning() << "[HotkeyManager] Window capture hotkey could not be registered";
+<<<<<<< ours
+
+    m_translatorModifiers = static_cast<UINT>(s.value("translatorHotkeyModifiers", 0).toUInt());
+    m_translatorVirtualKey = static_cast<UINT>(s.value("translatorHotkeyVKey", 0).toUInt());
+    if (!registerHotkey(HOTKEY_TRANSLATOR, m_translatorModifiers, m_translatorVirtualKey))
+        qWarning() << "[HotkeyManager] Translator hotkey could not be registered";
+=======
         recordFailure(HOTKEY_WINDOW_CAPTURE, m_windowCaptureModifiers, m_windowCaptureVirtualKey);
     }
 }
@@ -330,6 +337,7 @@ void HotkeyManager::onPortalShortcutsFailed()
     m_registeredHotkeys.clear();
     m_registeredHotkeyDefs.clear();
     emit hotkeyRegistrationFailed(ids);
+>>>>>>> theirs
 }
 
 bool HotkeyManager::requestLinuxPortalShortcutRebind()
@@ -694,7 +702,8 @@ bool HotkeyManager::reRegisterRecordingHotkeys(UINT pauseModifiers, UINT pauseVi
 bool HotkeyManager::reRegisterActionHotkeys(UINT instantModifiers, UINT instantVirtualKey,
                                             UINT gifModifiers, UINT gifVirtualKey,
                                             UINT videoModifiers, UINT videoVirtualKey,
-                                            UINT windowModifiers, UINT windowVirtualKey)
+                                            UINT windowModifiers, UINT windowVirtualKey,
+                                            UINT translatorModifiers, UINT translatorVirtualKey)
 {
     const UINT oldInstantModifiers = m_instantCaptureModifiers;
     const UINT oldInstantVirtualKey = m_instantCaptureVirtualKey;
@@ -704,17 +713,21 @@ bool HotkeyManager::reRegisterActionHotkeys(UINT instantModifiers, UINT instantV
     const UINT oldVideoVirtualKey = m_videoCaptureVirtualKey;
     const UINT oldWindowModifiers = m_windowCaptureModifiers;
     const UINT oldWindowVirtualKey = m_windowCaptureVirtualKey;
+    const UINT oldTranslatorModifiers = m_translatorModifiers;
+    const UINT oldTranslatorVirtualKey = m_translatorVirtualKey;
 
     unregisterHotkey(HOTKEY_INSTANT_CAPTURE);
     unregisterHotkey(HOTKEY_GIF_CAPTURE);
     unregisterHotkey(HOTKEY_VIDEO_CAPTURE);
     unregisterHotkey(HOTKEY_WINDOW_CAPTURE);
+    unregisterHotkey(HOTKEY_TRANSLATOR);
 
     bool ok = true;
     ok = registerHotkey(HOTKEY_INSTANT_CAPTURE, instantModifiers, instantVirtualKey) && ok;
     ok = registerHotkey(HOTKEY_GIF_CAPTURE, gifModifiers, gifVirtualKey) && ok;
     ok = registerHotkey(HOTKEY_VIDEO_CAPTURE, videoModifiers, videoVirtualKey) && ok;
     ok = registerHotkey(HOTKEY_WINDOW_CAPTURE, windowModifiers, windowVirtualKey) && ok;
+    ok = registerHotkey(HOTKEY_TRANSLATOR, translatorModifiers, translatorVirtualKey) && ok;
 
     if (ok) {
         m_instantCaptureModifiers = instantModifiers;
@@ -725,15 +738,26 @@ bool HotkeyManager::reRegisterActionHotkeys(UINT instantModifiers, UINT instantV
         m_videoCaptureVirtualKey = videoVirtualKey;
         m_windowCaptureModifiers = windowModifiers;
         m_windowCaptureVirtualKey = windowVirtualKey;
+        m_translatorModifiers = translatorModifiers;
+        m_translatorVirtualKey = translatorVirtualKey;
     } else {
         unregisterHotkey(HOTKEY_INSTANT_CAPTURE);
         unregisterHotkey(HOTKEY_GIF_CAPTURE);
         unregisterHotkey(HOTKEY_VIDEO_CAPTURE);
         unregisterHotkey(HOTKEY_WINDOW_CAPTURE);
+<<<<<<< ours
+        unregisterHotkey(HOTKEY_TRANSLATOR);
+        registerHotkey(HOTKEY_INSTANT_CAPTURE, oldInstantModifiers, oldInstantVirtualKey);
+        registerHotkey(HOTKEY_GIF_CAPTURE, oldGifModifiers, oldGifVirtualKey);
+        registerHotkey(HOTKEY_VIDEO_CAPTURE, oldVideoModifiers, oldVideoVirtualKey);
+        registerHotkey(HOTKEY_WINDOW_CAPTURE, oldWindowModifiers, oldWindowVirtualKey);
+        registerHotkey(HOTKEY_TRANSLATOR, oldTranslatorModifiers, oldTranslatorVirtualKey);
+=======
         restoreHotkeys({{HOTKEY_INSTANT_CAPTURE, oldInstantModifiers, oldInstantVirtualKey},
                         {HOTKEY_GIF_CAPTURE, oldGifModifiers, oldGifVirtualKey},
                         {HOTKEY_VIDEO_CAPTURE, oldVideoModifiers, oldVideoVirtualKey},
                         {HOTKEY_WINDOW_CAPTURE, oldWindowModifiers, oldWindowVirtualKey}});
+>>>>>>> theirs
     }
     return ok;
 }
@@ -781,6 +805,7 @@ void HotkeyManager::emitHotkey(int id)
     else if (id == HOTKEY_GIF_CAPTURE) emit gifCaptureRequested();
     else if (id == HOTKEY_VIDEO_CAPTURE) emit videoCaptureRequested();
     else if (id == HOTKEY_WINDOW_CAPTURE) emit windowCaptureRequested();
+    else if (id == HOTKEY_TRANSLATOR) emit translatorRequested();
 }
 
 void HotkeyManager::refreshPortalShortcuts()
