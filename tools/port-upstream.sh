@@ -130,6 +130,73 @@ if [ "$CONFLICTS" -gt 0 ] || [ "$FAIL" -eq 1 ]; then
   exit 2
 fi
 
+# --- 6. публикация релиза (тег + ассет из CI) --------------------------------
+# Вызывается после успешного влива в main. Не прерывает пайплайн при ошибке.
+publish_release() {
+  RUN_ID=$1
+  echo "== publish release $NEW =="
+  git tag -f -a "$NEW" -m "EShot Overlay $NEW" >/dev/null 2>&1
+  git push -q -f origin "$NEW" || { echo "WARN: не удалось запушить тег $NEW"; return 1; }
+
+  ART_ID=$(curl -s -H "Authorization: token $TOKEN" \
+    "https://api.github.com/repos/compand-lang/EShot-Overlay/actions/runs/$RUN_ID/artifacts" \
+    | python -c "import json,sys
+arts=json.load(sys.stdin).get('artifacts',[])
+m=[a for a in arts if a['name']=='EShot-overlay-windows-x64']
+print(m[0]['id'] if m else '')" 2>/dev/null)
+  [ -n "$ART_ID" ] || { echo "WARN: артефакт не найден"; return 1; }
+
+  ZIP="$TMP/release-$NEW.zip"
+  mkdir -p "$TMP"
+  for i in $(seq 1 15); do
+    curl -s -L -C - -H "Authorization: token $TOKEN" \
+      "https://api.github.com/repos/compand-lang/EShot-Overlay/actions/artifacts/$ART_ID/zip" -o "$ZIP" && break
+    sleep 3
+  done
+  python -c "import zipfile,sys; sys.exit(0 if zipfile.ZipFile('$ZIP').testzip() is None else 1)" || { echo "WARN: архив повреждён"; return 1; }
+
+  # удаляем предыдущий релиз на этом теге, если есть
+  OLD_REL=$(curl -s -H "Authorization: token $TOKEN" "https://api.github.com/repos/compand-lang/EShot-Overlay/releases/tags/$NEW" \
+    | python -c "import json,sys; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+  if [ -n "$OLD_REL" ]; then
+    curl -s -X DELETE -H "Authorization: token $TOKEN" "https://api.github.com/repos/compand-lang/EShot-Overlay/releases/$OLD_REL" -o /dev/null
+  fi
+
+  REL_ID=$(REL_NEW="$NEW" python - "$TOKEN" <<'PYEOF'
+import json, os, sys, urllib.request
+token, new = sys.argv[1], os.environ["REL_NEW"]
+body = (
+    f"## EShot Overlay {new}\n\n"
+    f"Сборка на базе апстрима **Benoks/EShot {new}** с нашими доработками.\n\n"
+    "### Наши функции\n"
+    "- **OCR в оверлей** — кнопка «Распознать текст» на нижней панели: текст на тёмной полупрозрачной плашке, копируется кнопкой в углу области\n"
+    "- **Перевод текста (OCR overlay)** — вторая кнопка: распознаёт и сразу переводит текст оверлея\n"
+    "- **Переводчик** — в трее и на горячую клавишу (задаётся в настройках)\n"
+    "- **Автоопределение языка OCR** — все 13 языковых паков\n\n"
+    "**Скачайте `EShot-overlay-windows-x64.zip`, распакуйте в новую папку и запустите `EShot.exe`.**"
+)
+req = urllib.request.Request(
+    "https://api.github.com/repos/compand-lang/EShot-Overlay/releases",
+    data=json.dumps({"tag_name": new, "name": f"EShot Overlay {new}", "body": body}).encode(),
+    headers={"Authorization": f"token {token}", "Accept": "application/vnd.github+json"},
+)
+try:
+    with urllib.request.urlopen(req) as r:
+        print(json.load(r)["id"])
+except Exception:
+    print("")
+PYEOF
+)
+  [ -n "$REL_ID" ] || { echo "WARN: не удалось создать релиз"; return 1; }
+
+  curl -s -L -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/zip" \
+    --data-binary @"$ZIP" \
+    "https://uploads.github.com/repos/compand-lang/EShot-Overlay/releases/$REL_ID/assets?name=EShot-overlay-windows-x64.zip" \
+    | python -c "import json,sys; a=json.load(sys.stdin); print('asset:', a.get('name'), a.get('size'), a.get('state',''))" 2>/dev/null
+  echo "RELEASED: https://github.com/compand-lang/EShot-Overlay/releases/tag/$NEW"
+}
+
+
 # --- 5. коммит, push, ждём CI ------------------------------------------------
 git add -A
 git commit -q -m "Port our overlay OCR/translate features to upstream $NEW
@@ -197,6 +264,7 @@ if [ "$CONCLUSION" = "completed success" ]; then
   git branch -D "port-$NEW" >/dev/null 2>&1
   rm -rf "$TMP"
   echo "PORTED: main обновлён до $NEW и запушен"
+  publish_release "$RUN_ID" || echo "WARN: релиз не опубликован (сборка в main всё равно готова)"
   exit 1
 else
   echo "CI-FAILED: см. https://github.com/compand-lang/EShot-Overlay/actions/runs/$RUN_ID (ветка port-$NEW сохранена)"
