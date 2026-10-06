@@ -135,7 +135,7 @@ git add -A
 git commit -q -m "Port our overlay OCR/translate features to upstream $NEW
 
 Auto-ported by tools/port-upstream.sh (base $BASE_TAG -> $NEW)." || true
-echo "$NEW" > "$BASE_FILE"
+printf '%s\n%s\n' "$NEW" "$NEW_SHA" > "$BASE_FILE"
 git add "$BASE_FILE"
 git commit -q -m "Bump .port-base to $NEW" || true
 
