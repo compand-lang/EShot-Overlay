@@ -274,15 +274,14 @@ HotkeyManager::HotkeyManager(QObject *parent) : QObject(parent)
         recordFailure(HOTKEY_VIDEO_CAPTURE, m_videoCaptureModifiers, m_videoCaptureVirtualKey);
     if (!registerHotkey(HOTKEY_WINDOW_CAPTURE, m_windowCaptureModifiers, m_windowCaptureVirtualKey)) {
         qWarning() << "[HotkeyManager] Window capture hotkey could not be registered";
-<<<<<<< ours
+        recordFailure(HOTKEY_WINDOW_CAPTURE, m_windowCaptureModifiers, m_windowCaptureVirtualKey);
+    }
 
     m_translatorModifiers = static_cast<UINT>(s.value("translatorHotkeyModifiers", 0).toUInt());
     m_translatorVirtualKey = static_cast<UINT>(s.value("translatorHotkeyVKey", 0).toUInt());
     if (!registerHotkey(HOTKEY_TRANSLATOR, m_translatorModifiers, m_translatorVirtualKey))
-        qWarning() << "[HotkeyManager] Translator hotkey could not be registered";
-=======
-        recordFailure(HOTKEY_WINDOW_CAPTURE, m_windowCaptureModifiers, m_windowCaptureVirtualKey);
-    }
+        recordFailure(HOTKEY_TRANSLATOR, m_translatorModifiers, m_translatorVirtualKey);
+}
 }
 
 QList<HotkeyBinding> HotkeyManager::failedHotkeys() const
@@ -337,7 +336,6 @@ void HotkeyManager::onPortalShortcutsFailed()
     m_registeredHotkeys.clear();
     m_registeredHotkeyDefs.clear();
     emit hotkeyRegistrationFailed(ids);
->>>>>>> theirs
 }
 
 bool HotkeyManager::requestLinuxPortalShortcutRebind()
@@ -745,19 +743,11 @@ bool HotkeyManager::reRegisterActionHotkeys(UINT instantModifiers, UINT instantV
         unregisterHotkey(HOTKEY_GIF_CAPTURE);
         unregisterHotkey(HOTKEY_VIDEO_CAPTURE);
         unregisterHotkey(HOTKEY_WINDOW_CAPTURE);
-<<<<<<< ours
-        unregisterHotkey(HOTKEY_TRANSLATOR);
-        registerHotkey(HOTKEY_INSTANT_CAPTURE, oldInstantModifiers, oldInstantVirtualKey);
-        registerHotkey(HOTKEY_GIF_CAPTURE, oldGifModifiers, oldGifVirtualKey);
-        registerHotkey(HOTKEY_VIDEO_CAPTURE, oldVideoModifiers, oldVideoVirtualKey);
-        registerHotkey(HOTKEY_WINDOW_CAPTURE, oldWindowModifiers, oldWindowVirtualKey);
-        registerHotkey(HOTKEY_TRANSLATOR, oldTranslatorModifiers, oldTranslatorVirtualKey);
-=======
         restoreHotkeys({{HOTKEY_INSTANT_CAPTURE, oldInstantModifiers, oldInstantVirtualKey},
                         {HOTKEY_GIF_CAPTURE, oldGifModifiers, oldGifVirtualKey},
                         {HOTKEY_VIDEO_CAPTURE, oldVideoModifiers, oldVideoVirtualKey},
-                        {HOTKEY_WINDOW_CAPTURE, oldWindowModifiers, oldWindowVirtualKey}});
->>>>>>> theirs
+                        {HOTKEY_WINDOW_CAPTURE, oldWindowModifiers, oldWindowVirtualKey},
+                        {HOTKEY_TRANSLATOR, oldTranslatorModifiers, oldTranslatorVirtualKey}});
     }
     return ok;
 }

@@ -342,7 +342,6 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
             return;
         }
         if (outText.isEmpty()) {
-<<<<<<< ours
             if (!errText.isEmpty()) {
                 emit failed(QStringLiteral("Tesseract: ") + errText.left(400));
             } else {
@@ -390,9 +389,6 @@ void OcrEngine::startRecognitionProcess(const QString &imagePath,
 
         if (lines.isEmpty()) {
             emit failed(QStringLiteral("No text recognized"));
-=======
-            emit failed(TranslationManager::ocrEmpty());
->>>>>>> theirs
             return;
         }
         QStringList textOnly;

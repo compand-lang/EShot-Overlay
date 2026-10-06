@@ -1404,20 +1404,15 @@ QWidget* SettingsDialog::createHotkeyTab()
     addActionHotkeyRow(HotkeyManager::HOTKEY_WINDOW_CAPTURE, TranslationManager::tr("hotkeyWindowLabel"),
                        TranslationManager::trayWindowCapture(), m_windowCaptureHotkeyEdit);
 #endif
-<<<<<<< ours
-    actionHotkeyLayout->addRow(uiLabel("Instant bolge:", "Instant region:"), m_instantCaptureHotkeyEdit);
-    actionHotkeyLayout->addRow(QStringLiteral("GIF:"), m_gifCaptureHotkeyEdit);
-    actionHotkeyLayout->addRow(uiLabel("Video:", "Video:"), m_videoCaptureHotkeyEdit);
-    m_translatorHotkeyEdit->setToolTip(uiLabel("Bos birakilirsa kapali kalir. Cevirmen penceresini acar.", "Leave empty to disable. Opens the translator window."));
-    actionHotkeyLayout->addRow(uiLabel("Cevirmen:", "Translator:"), m_translatorHotkeyEdit);
-=======
     addActionHotkeyRow(HotkeyManager::HOTKEY_INSTANT_CAPTURE, TranslationManager::tr("hotkeyInstantRegionLabel"),
                        labelName(TranslationManager::tr("hotkeyInstantRegionLabel")), m_instantCaptureHotkeyEdit);
     addActionHotkeyRow(HotkeyManager::HOTKEY_GIF_CAPTURE, QStringLiteral("GIF:"),
                        QStringLiteral("GIF"), m_gifCaptureHotkeyEdit);
     addActionHotkeyRow(HotkeyManager::HOTKEY_VIDEO_CAPTURE, TranslationManager::tr("hotkeyVideoLabel"),
                        labelName(TranslationManager::tr("hotkeyVideoLabel")), m_videoCaptureHotkeyEdit);
->>>>>>> theirs
+    m_translatorHotkeyEdit->setToolTip(uiLabel("Bos birakilirsa kapali kalir. Cevirmen penceresini acar.", "Leave empty to disable. Opens the translator window."));
+    addActionHotkeyRow(HotkeyManager::HOTKEY_TRANSLATOR, TranslationManager::hotkeyTranslator(),
+                       labelName(TranslationManager::hotkeyTranslator()), m_translatorHotkeyEdit);
     gl->addWidget(actionGroup);
 
     QGroupBox *recordingGroup = new QGroupBox(TranslationManager::videoRecordingTitle());
@@ -2531,7 +2526,6 @@ void SettingsDialog::onSave()
                                static_cast<quint32>(m_settings->value("videoCaptureHotkeyVKey", 0).toUInt())}) ||
         settingsHotkeyChanged({windowMod, windowVKey},
                               {static_cast<quint32>(m_settings->value("windowCaptureHotkeyModifiers", defaultWindowCaptureModifiers()).toUInt()),
-<<<<<<< ours
                                static_cast<quint32>(m_settings->value("windowCaptureHotkeyVKey", defaultWindowCaptureVirtualKey()).toUInt())}) ||
         settingsHotkeyChanged({translatorMod, translatorVKey},
                               {static_cast<quint32>(m_settings->value("translatorHotkeyModifiers", 0).toUInt()),
@@ -2540,8 +2534,6 @@ void SettingsDialog::onSave()
     // update fails, no partial settings are written (onSave partial
     // success guard).
     if (m_autoStartCheck->isChecked() != m_loadedAutoStart && !setAutoStartEnabled(m_autoStartCheck->isChecked())) {
-=======
-                               static_cast<quint32>(m_settings->value("windowCaptureHotkeyVKey", defaultWindowCaptureVirtualKey()).toUInt())});
     // Apply startup changes before persisting anything: if they fail, no
     // partial settings are written (onSave partial success guard).
     const bool wantAutoStart = m_autoStartCheck->isChecked();
@@ -2559,7 +2551,6 @@ void SettingsDialog::onSave()
     const bool wantRunKey = wantAutoStart && !wantElevated;
     const bool hadRunKey = m_loadedAutoStart && !m_loadedRunElevated;
     if (wantRunKey != hadRunKey && !setAutoStartEnabled(wantRunKey)) {
->>>>>>> theirs
         QMessageBox::warning(this, TranslationManager::errTitle(),
                              TranslationManager::autoStartSaveFailed());
         return;

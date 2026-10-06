@@ -62,13 +62,10 @@ signals:
     void gifCaptureRequested();
     void videoCaptureRequested();
     void windowCaptureRequested();
-<<<<<<< ours
     void translatorRequested();
-=======
     // Emitted when configured hotkeys stop being or could not become active
     // outside a reRegister*() request; see failedHotkeys().
     void hotkeyRegistrationFailed(const QList<int> &ids);
->>>>>>> theirs
 
 private:
     explicit HotkeyManager(QObject *parent = nullptr);
