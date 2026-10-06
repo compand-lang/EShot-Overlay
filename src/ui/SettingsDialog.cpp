@@ -1410,7 +1410,7 @@ QWidget* SettingsDialog::createHotkeyTab()
                        QStringLiteral("GIF"), m_gifCaptureHotkeyEdit);
     addActionHotkeyRow(HotkeyManager::HOTKEY_VIDEO_CAPTURE, TranslationManager::tr("hotkeyVideoLabel"),
                        labelName(TranslationManager::tr("hotkeyVideoLabel")), m_videoCaptureHotkeyEdit);
-    m_translatorHotkeyEdit->setToolTip(uiLabel("Bos birakilirsa kapali kalir. Cevirmen penceresini acar.", "Leave empty to disable. Opens the translator window."));
+    m_translatorHotkeyEdit->setToolTip(TranslationManager::hotkeyTranslator());
     addActionHotkeyRow(HotkeyManager::HOTKEY_TRANSLATOR, TranslationManager::hotkeyTranslator(),
                        labelName(TranslationManager::hotkeyTranslator()), m_translatorHotkeyEdit);
     gl->addWidget(actionGroup);
@@ -2530,10 +2530,6 @@ void SettingsDialog::onSave()
         settingsHotkeyChanged({translatorMod, translatorVKey},
                               {static_cast<quint32>(m_settings->value("translatorHotkeyModifiers", 0).toUInt()),
                                static_cast<quint32>(m_settings->value("translatorHotkeyVKey", 0).toUInt())});
-    // Apply the autostart change before persisting anything: if the Run key
-    // update fails, no partial settings are written (onSave partial
-    // success guard).
-    if (m_autoStartCheck->isChecked() != m_loadedAutoStart && !setAutoStartEnabled(m_autoStartCheck->isChecked())) {
     // Apply startup changes before persisting anything: if they fail, no
     // partial settings are written (onSave partial success guard).
     const bool wantAutoStart = m_autoStartCheck->isChecked();

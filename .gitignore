@@ -116,3 +116,5 @@ ROADMAP.md
 docs/superpowers/
 .porttmp/
 .port-base.bak
+.ci-log/
+.ci-log.zip

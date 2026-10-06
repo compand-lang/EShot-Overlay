@@ -282,7 +282,6 @@ HotkeyManager::HotkeyManager(QObject *parent) : QObject(parent)
     if (!registerHotkey(HOTKEY_TRANSLATOR, m_translatorModifiers, m_translatorVirtualKey))
         recordFailure(HOTKEY_TRANSLATOR, m_translatorModifiers, m_translatorVirtualKey);
 }
-}
 
 QList<HotkeyBinding> HotkeyManager::failedHotkeys() const
 {
