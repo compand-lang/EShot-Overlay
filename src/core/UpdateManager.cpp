@@ -103,7 +103,7 @@ void UpdateManager::checkForUpdates(bool manual)
     m_checking = true;
     setStatus(TranslationManager::updateStatusChecking());
 
-    QUrl url(QStringLiteral("https://api.github.com/repos/Benoks/EShot/releases/latest"));
+    QUrl url(QStringLiteral("https://api.github.com/repos/compand-lang/EShot-Overlay/releases/latest"));
     QUrlQuery query;
     query.addQueryItem(QStringLiteral("_t"), QString::number(QDateTime::currentMSecsSinceEpoch()));
     url.setQuery(query);
@@ -207,7 +207,7 @@ void UpdateManager::checkSilentUpdateEligibility()
     if (m_releaseListReply || !isSelfManagedInstall())
         return;
 
-    QUrl url(QStringLiteral("https://api.github.com/repos/Benoks/EShot/releases"));
+    QUrl url(QStringLiteral("https://api.github.com/repos/compand-lang/EShot-Overlay/releases"));
     QUrlQuery query;
     query.addQueryItem(QStringLiteral("per_page"), QStringLiteral("100"));
     url.setQuery(query);

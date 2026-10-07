@@ -198,6 +198,9 @@ PYEOF
 
 
 # --- 5. коммит, push, ждём CI ------------------------------------------------
+# Версия сборки = тег апстрима (автор иногда забывает поднять VERSION в CMakeLists,
+# из-за чего готовая сборка просит "обновиться" до апстрима).
+sed -i "s|project(EShot VERSION [0-9.]* LANGUAGES CXX)|project(EShot VERSION ${NEW#v} LANGUAGES CXX)|" CMakeLists.txt
 git add -A
 git commit -q -m "Port our overlay OCR/translate features to upstream $NEW
 
