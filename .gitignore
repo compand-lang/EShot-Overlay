@@ -114,4 +114,11 @@ ROADMAP.md
 
 # Local Codex planning artifacts
 docs/superpowers/
+<<<<<<< ours
+.porttmp/
+.port-base.bak
+.ci-log/
+.ci-log.zip
+=======
 dist-windows/
+>>>>>>> theirs

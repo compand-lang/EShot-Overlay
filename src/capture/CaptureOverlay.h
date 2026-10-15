@@ -359,6 +359,7 @@ private slots:
     void onEyedropperRequested();
     void onSelectionLockToggled(bool locked);
     void onOcrRequested();
+    void onOcrTranslateRequested();
     void onUploadRequested();
     void onGoogleLensRequested();
     // Toolbar record button: the drawer in the last used mode.
