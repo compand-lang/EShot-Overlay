@@ -33,7 +33,7 @@ protected:
 
 private:
     QPixmap renderOverlay() const;
-    QFont fontForLine(const QRect &r, const QString &text, QFont base) const;
+    QFont fitFontToRect(const QSize &size, const QString &text, int preferredSize, QFont base) const;
     void copyAllText() const;
     void addTextEditForLine(const QRect &r, const QString &text, const QFont &font);
     void placeCopyButton();
@@ -41,9 +41,9 @@ private:
     QPixmap m_source;
     QVector<OcrTextLine> m_lines;
     QRect m_targetDisplayRect;
-    QSize m_outputSize;
-    QVector<QRect> m_lineRects;
-    QVector<QFont> m_lineFonts;
+    QString m_text;
+    QRect m_textRect;
+    QFont m_textFont;
     QLabel *m_imageLabel = nullptr;
     QToolButton *m_copyButton = nullptr;
     QList<QPointer<QTextEdit>> m_textEdits;

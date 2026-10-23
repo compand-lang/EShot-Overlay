@@ -32,17 +32,15 @@ TranslatedOverlayDialog::TranslatedOverlayDialog(const QPixmap &source,
     setModal(false);
     setWindowTitle(QStringLiteral("EShot translation overlay"));
 
-    // Сначала раскладываем блоки: текст переносится по ширине исходной
-    // OCR-рамки, высота блока вычисляется по реальному документу. Если
-    // перевод длиннее оригинала, блок растёт вниз, а следующие блоки
-    // сдвигаются, чтобы не перекрываться.
+    // Оверлей всегда остаётся в пределах исходной выделенной области.
+    // OCR-строки склеиваются в один непрерывный текст, а общая рамка
+    // объединяет их геометрию без пустых межабзацных промежутков.
     const bool hasTarget = m_targetDisplayRect.isValid();
     const QSize baseSize = hasTarget ? m_targetDisplayRect.size() : m_source.size();
     const double sx = hasTarget ? (double(baseSize.width()) / double(qMax(1, m_source.width()))) : 1.0;
     const double sy = hasTarget ? (double(baseSize.height()) / double(qMax(1, m_source.height()))) : 1.0;
+    const QRect bounds(QPoint(0, 0), baseSize);
 
-    m_lineRects.fill(QRect(), m_lines.size());
-    m_lineFonts.fill(QFont(), m_lines.size());
     QVector<int> order;
     order.reserve(m_lines.size());
     for (int i = 0; i < m_lines.size(); ++i) order.append(i);
@@ -52,51 +50,31 @@ TranslatedOverlayDialog::TranslatedOverlayDialog(const QPixmap &source,
         return m_lines[a].rect.left() < m_lines[b].rect.left();
     });
 
-    int contentBottom = baseSize.height();
+    QStringList parts;
+    int preferredSize = 11;
     for (int i : order) {
-        const QString text = m_lines[i].text.trimmed();
+        const QString text = m_lines[i].text.simplified();
         if (text.isEmpty()) continue;
+        parts << text;
 
         QRect r = m_lines[i].rect.normalized().adjusted(-2, -2, 2, 2);
         if (hasTarget) {
             r = QRect(QPoint(qRound(r.x() * sx), qRound(r.y() * sy)),
                       QSize(qMax(1, qRound(r.width() * sx)), qMax(1, qRound(r.height() * sy))));
         }
-        if (r.isEmpty()) r = QRect(0, 0, baseSize.width(), baseSize.height());
+        if (r.isEmpty()) r = bounds;
+        r = r.intersected(bounds);
+        if (r.isEmpty()) continue;
 
-        const int x = qBound(0, r.x(), qMax(0, baseSize.width() - 40));
-        int w = qMax(40, r.width());
-        if (x + w > baseSize.width()) w = baseSize.width() - x;
-        w = qMax(24, w);
-
-        const QFont lineFont = fontForLine(r, text, font());
-        QTextDocument doc;
-        doc.setDocumentMargin(0);
-        doc.setDefaultFont(lineFont);
-        QTextOption option = doc.defaultTextOption();
-        option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
-        doc.setDefaultTextOption(option);
-        doc.setPlainText(text);
-        doc.setTextWidth(qMax(16, w - 8));
-        const int textHeight = qCeil(doc.documentLayout()->documentSize().height());
-
-        const int blockHeight = qMax(r.height(), textHeight + 4);
-        int y = qMax(0, r.y());
-        // Сдвигаем блок только под теми предыдущими блоками, с которыми
-        // он действительно пересекается по горизонтали. Независимые
-        // колонки остаются рядом, а не выстраиваются в одну ленту.
-        for (int previous : order) {
-            if (previous == i) break;
-            const QRect &placed = m_lineRects[previous];
-            if (!placed.isValid()) continue;
-            const bool overlapsX = x <= placed.right() && placed.x() < x + w;
-            if (overlapsX) y = qMax(y, placed.bottom() + 3);
-        }
-        m_lineRects[i] = QRect(x, y, w, blockHeight);
-        m_lineFonts[i] = lineFont;
-        contentBottom = qMax(contentBottom, y + blockHeight);
+        m_textRect = m_textRect.isNull() ? r : m_textRect.united(r);
+        preferredSize = qMax(preferredSize, qBound(8, r.height() - 4, 28));
     }
-    m_outputSize = QSize(baseSize.width(), contentBottom);
+    m_text = parts.join(QLatin1Char(' '));
+    if (!m_text.isEmpty()) {
+        if (m_textRect.isEmpty()) m_textRect = bounds;
+        const QRect editRect = m_textRect.adjusted(4, 2, -4, -2);
+        m_textFont = fitFontToRect(editRect.size(), m_text, preferredSize, font());
+    }
 
     m_imageLabel = new QLabel(this);
     m_imageLabel->setPixmap(renderOverlay());
@@ -118,12 +96,10 @@ TranslatedOverlayDialog::TranslatedOverlayDialog(const QPixmap &source,
     layout->addWidget(m_imageLabel);
     resize(m_imageLabel->pixmap().size());
 
-    // Настоящий текст поверх плашек: можно выделить мышкой, Ctrl+C копирует.
-    for (int i = 0; i < m_lines.size(); ++i) {
-        const QString text = m_lines[i].text.trimmed();
-        if (text.isEmpty() || !m_lineRects[i].isValid()) continue;
-        addTextEditForLine(m_lineRects[i].adjusted(4, 2, -4, -2), text, m_lineFonts[i]);
-    }
+    // Один редактор на весь текст: нет отдельных абзацев и разрывов между
+    // OCR-строками. Текст по-прежнему можно выделять и копировать.
+    if (!m_text.isEmpty() && m_textRect.isValid())
+        addTextEditForLine(m_textRect.adjusted(4, 2, -4, -2), m_text, m_textFont);
 
     // Кнопка «копировать весь текст» в правом верхнем углу оверлея.
     m_copyButton = new QToolButton(m_imageLabel);
@@ -165,9 +141,7 @@ void TranslatedOverlayDialog::closeAll() {
 }
 
 void TranslatedOverlayDialog::copyAllText() const {
-    QStringList text;
-    for (const OcrTextLine &line : m_lines) text << line.text;
-    QGuiApplication::clipboard()->setText(text.join(QLatin1Char('\n')));
+    QGuiApplication::clipboard()->setText(m_text);
 }
 
 void TranslatedOverlayDialog::keyPressEvent(QKeyEvent *event) {
@@ -222,26 +196,32 @@ void TranslatedOverlayDialog::addTextEditForLine(const QRect &r, const QString &
     m_textEdits.append(edit);
 }
 
-QFont TranslatedOverlayDialog::fontForLine(const QRect &r, const QString &text, QFont base) const {
-    Q_UNUSED(text);
-    // Размер берём из высоты исходной строки, но не ужимаем длинный перевод:
-    // перенос строк решает проблему ширины, а высота блока считается отдельно.
-    const int size = qBound(11, r.height() - 4, 28);
-    base.setPointSize(size);
-    base.setWeight(QFont::DemiBold); // читаемо, но не так тяжело, как Bold
+QFont TranslatedOverlayDialog::fitFontToRect(const QSize &size, const QString &text,
+                                             int preferredSize, QFont base) const {
+    base.setWeight(QFont::DemiBold);
+    const int firstSize = qBound(6, preferredSize, 28);
+    for (int pointSize = firstSize; pointSize >= 6; --pointSize) {
+        base.setPointSize(pointSize);
+        QTextDocument doc;
+        doc.setDocumentMargin(0);
+        doc.setDefaultFont(base);
+        QTextOption option = doc.defaultTextOption();
+        option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
+        doc.setDefaultTextOption(option);
+        doc.setPlainText(text);
+        doc.setTextWidth(qMax(1, size.width()));
+        const int textHeight = qCeil(doc.documentLayout()->documentSize().height());
+        if (textHeight <= size.height() + 1) return base;
+    }
     return base;
 }
 
 QPixmap TranslatedOverlayDialog::renderOverlay() const {
     if (m_source.isNull()) return QPixmap();
 
-    // Исходный снимок остаётся наверху, область ниже него (если длинный
-    // перевод раздвинул блоки) заливается тем же тёмным цветом.
     const bool hasTarget = m_targetDisplayRect.isValid();
     const QSize baseSize = hasTarget ? m_targetDisplayRect.size() : m_source.size();
-    const QSize outSize = m_outputSize.isValid() ? m_outputSize : baseSize;
-
-    QPixmap out(outSize);
+    QPixmap out(baseSize);
     out.fill(QColor(28, 28, 28, 255));
 
     QPainter p(&out);
@@ -250,12 +230,9 @@ QPixmap TranslatedOverlayDialog::renderOverlay() const {
     p.drawPixmap(QRectF(0, 0, baseSize.width(), baseSize.height()), m_source,
                  QRectF(0, 0, m_source.width(), m_source.height()));
 
-    // Рисуем только тёмные плашки — сам текст показывают QTextEdit поверх,
-    // чтобы его можно было выделять и копировать. Плашки уже имеют высоту,
-    // достаточную для многострочного перенесённого текста.
-    for (const QRect &r : m_lineRects) {
-        if (r.isValid() && !r.isEmpty())
-            p.fillRect(r, QColor(28, 28, 28, 204));
-    }
+    // Одна полупрозрачная плашка строго в исходной области. Сам текст
+    // показывает QTextEdit поверх, чтобы его можно было выделять и копировать.
+    if (m_textRect.isValid() && !m_textRect.isEmpty())
+        p.fillRect(m_textRect, QColor(28, 28, 28, 204));
     return out;
 }
