@@ -41,6 +41,9 @@ private:
     QPixmap m_source;
     QVector<OcrTextLine> m_lines;
     QRect m_targetDisplayRect;
+    QSize m_outputSize;
+    QVector<QRect> m_lineRects;
+    QVector<QFont> m_lineFonts;
     QLabel *m_imageLabel = nullptr;
     QToolButton *m_copyButton = nullptr;
     QList<QPointer<QTextEdit>> m_textEdits;

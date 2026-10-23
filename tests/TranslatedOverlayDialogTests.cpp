@@ -1,4 +1,7 @@
 #include <QtTest/QtTest>
+#include <QTextEdit>
+#include <QAbstractTextDocumentLayout>
+#include <algorithm>
 
 #include "ui/TranslatedOverlayDialog.h"
 
@@ -13,6 +16,8 @@ private slots:
     void keepsSourceSizeWithoutTargetRect();
     void closeAllClosesLiveOverlays();
     void closedOverlayIsRemovedFromLiveSet();
+    void wrapsLongTextWithoutClipping();
+    void keepsIndependentColumnsSideBySide();
 };
 
 namespace {
@@ -77,6 +82,54 @@ void TranslatedOverlayDialogTests::closedOverlayIsRemovedFromLiveSet()
     // closeAll после закрытия не должен упасть и не должен затронуть другие окна.
     TranslatedOverlayDialog::closeAll();
     delete dialog;
+}
+
+void TranslatedOverlayDialogTests::wrapsLongTextWithoutClipping()
+{
+    QPixmap source(120, 60);
+    source.fill(Qt::white);
+
+    OcrTextLine first;
+    first.rect = QRect(4, 4, 52, 14);
+    first.text = QStringLiteral("Очень длинный русский перевод, который обязан целиком помещаться в узкой колонке");
+    OcrTextLine second;
+    second.rect = QRect(4, 24, 52, 14);
+    second.text = QStringLiteral("И вторая строка тоже должна остаться полностью видимой без горизонтальной прокрутки");
+
+    TranslatedOverlayDialog dialog(source, {first, second}, QRect(0, 0, 120, 60));
+    QVERIFY(dialog.height() > 60); // блоки выросли вниз, а не обрезали текст
+
+    const auto edits = dialog.findChildren<QTextEdit *>();
+    QCOMPARE(edits.size(), 2);
+
+    QList<QRect> rects;
+    for (QTextEdit *edit : edits) {
+        QCOMPARE(edit->font().weight(), QFont::DemiBold);
+        edit->document()->setTextWidth(edit->width());
+        QVERIFY(edit->document()->documentLayout()->documentSize().height() <= edit->height() + 1);
+        QVERIFY(edit->x() >= 0 && edit->x() + edit->width() <= dialog.width());
+        rects << QRect(edit->pos(), edit->size());
+    }
+    std::sort(rects.begin(), rects.end(), [](const QRect &a, const QRect &b) { return a.y() < b.y(); });
+    QVERIFY(!rects[0].intersects(rects[1]));
+}
+
+void TranslatedOverlayDialogTests::keepsIndependentColumnsSideBySide()
+{
+    QPixmap source(120, 60);
+    source.fill(Qt::white);
+
+    OcrTextLine left;
+    left.rect = QRect(4, 4, 52, 14);
+    left.text = QStringLiteral("Длинный текст в левой колонке, который переносится на несколько строк");
+    OcrTextLine right;
+    right.rect = QRect(64, 4, 52, 14);
+    right.text = QStringLiteral("Правая колонка");
+
+    TranslatedOverlayDialog dialog(source, {left, right}, QRect(0, 0, 120, 60));
+    const auto edits = dialog.findChildren<QTextEdit *>();
+    QCOMPARE(edits.size(), 2);
+    QCOMPARE(edits[0]->y(), edits[1]->y());
 }
 
 QTEST_MAIN(TranslatedOverlayDialogTests)
