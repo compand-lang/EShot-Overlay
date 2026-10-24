@@ -54,6 +54,46 @@ jobs:
           version: '6.8.2'
           arch: win64_msvc2022_64
 
+      # Bundle the same portable components as the original EShot release.
+      # Pin immutable URLs and hashes so CI never silently packages another binary.
+      - name: Stage bundled FFmpeg
+        shell: pwsh
+        run: |
+          $url = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-10-23-13-04/ffmpeg-N-127957-g935f29eaae-win64-gpl.zip'
+          $expected = 'fcf14fbbf9937ead11f464c6ecc73bc30400441ab6048c8cf3c55d77fd1c1042'
+          curl.exe -L --fail --retry 3 --retry-delay 5 -o ffmpeg.zip $url
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download the pinned FFmpeg build' }
+          if ((Get-FileHash ffmpeg.zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+            throw 'FFmpeg archive SHA-256 mismatch'
+          }
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_extract -Force
+          New-Item -ItemType Directory -Force third_party/ffmpeg/bin | Out-Null
+          Copy-Item (Get-ChildItem -Recurse ffmpeg_extract/*/bin/*.exe) third_party/ffmpeg/bin/ -Force
+          $license = Get-ChildItem ffmpeg_extract -Recurse -Filter LICENSE.txt | Select-Object -First 1
+          if ($license) { Copy-Item $license.FullName third_party/ffmpeg/bin/LICENSE.txt -Force }
+          & third_party/ffmpeg/bin/ffmpeg.exe -version
+          if ($LASTEXITCODE -ne 0) { throw 'Bundled ffmpeg.exe failed to launch' }
+
+      - name: Stage bundled Tesseract OCR
+        shell: pwsh
+        run: |
+          $url = 'https://github.com/Benoks/EShot/releases/download/v4.1.2/EShot-v4.1.2-x64-portable.zip'
+          $expected = '5de6f60e4272e411ed464d9b6a8d2d0806a8aee43bbeadcf9da29a4d440c5105'
+          curl.exe -L --fail --retry 3 --retry-delay 5 -o tesseract-runtime.zip $url
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download the verified Tesseract runtime' }
+          if ((Get-FileHash tesseract-runtime.zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+            throw 'Tesseract runtime archive SHA-256 mismatch'
+          }
+          Expand-Archive tesseract-runtime.zip -DestinationPath tesseract-runtime -Force
+          $runtime = Get-ChildItem tesseract-runtime -Recurse -Directory |
+            Where-Object { Test-Path (Join-Path $_.FullName 'tesseract.exe') } |
+            Select-Object -First 1
+          if (-not $runtime) { throw 'Tesseract runtime not found in the verified archive' }
+          New-Item -ItemType Directory -Force third_party/tesseract | Out-Null
+          Copy-Item "$($runtime.FullName)\*" third_party/tesseract -Recurse -Force
+          & third_party/tesseract/tesseract.exe --version
+          if ($LASTEXITCODE -ne 0) { throw 'Bundled tesseract.exe failed to launch' }
+
       - name: Setup MSVC x64
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -70,6 +110,32 @@ jobs:
           set QT_DIR=%QT_ROOT_DIR%
           echo Using QT_DIR=%QT_DIR%
           build.bat > build\build-log.txt 2>&1
+
+      - name: Verify bundled OCR and recording components
+        shell: pwsh
+        run: |
+          $required = @(
+            'dist/bin/EShot.exe',
+            'dist/bin/tesseract/tesseract.exe',
+            'dist/bin/tesseract/tessdata/eng.traineddata',
+            'dist/bin/tesseract/tessdata/rus.traineddata',
+            'dist/bin/ffmpeg/ffmpeg.exe',
+            'dist/bin/ffmpeg/ffprobe.exe'
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) { throw "Missing bundled component: $path" }
+          }
+          & dist/bin/tesseract/tesseract.exe --list-langs 2>&1 |
+            Tee-Object -Variable languages | Add-Content build/build-log.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Installed Tesseract failed to list languages' }
+          $languagesText = $languages | Out-String
+          if ($languagesText -notmatch '(?m)^eng$' -or $languagesText -notmatch '(?m)^rus$') {
+            throw 'Bundled English or Russian OCR language data is unavailable'
+          }
+          & dist/bin/ffmpeg/ffmpeg.exe -version 2>&1 |
+            Select-Object -First 1 | Add-Content build/build-log.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Installed FFmpeg failed to launch' }
+          Add-Content build/build-log.txt 'OK: Tesseract, FFmpeg and OCR languages are bundled and executable.'
 
       - name: Upload build log
         if: always()
