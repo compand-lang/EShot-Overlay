@@ -128,8 +128,8 @@ jobs:
           & dist/bin/tesseract/tesseract.exe --list-langs 2>&1 |
             Tee-Object -Variable languages | Add-Content build/build-log.txt
           if ($LASTEXITCODE -ne 0) { throw 'Installed Tesseract failed to list languages' }
-          $languagesText = $languages | Out-String
-          if ($languagesText -notmatch '(?m)^eng$' -or $languagesText -notmatch '(?m)^rus$') {
+          $languageNames = $languages | ForEach-Object { $_.ToString().Trim() }
+          if ($languageNames -notcontains 'eng' -or $languageNames -notcontains 'rus') {
             throw 'Bundled English or Russian OCR language data is unavailable'
           }
           & dist/bin/ffmpeg/ffmpeg.exe -version 2>&1 |
