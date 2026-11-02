@@ -13,8 +13,9 @@ private slots:
     void providerIdsRoundTrip();
     void legacyProviderIdsMapToFreeProviders();
     void unknownProviderIdFallsBackToGoogle();
-    void freeFallbackOnlyForYandex();
+    void freeFallbackChain();
     void googleReplyParsing();
+    void myMemoryReplyParsing();
     void yandexReplyParsing();
     void deeplReplyParsing();
     void libreReplyParsing();
@@ -27,12 +28,13 @@ using Provider = TranslationClient::Provider;
 void TranslationClientTests::providerIdsRoundTrip()
 {
     const QStringList ids = TranslationClient::providerIds();
-    QCOMPARE(ids.size(), 5);
+    QCOMPARE(ids.size(), 6);
     QCOMPARE(ids.at(0), QStringLiteral("google_free"));
     QCOMPARE(ids.at(1), QStringLiteral("yandex_free"));
-    QCOMPARE(ids.at(2), QStringLiteral("deepl_api"));
-    QCOMPARE(ids.at(3), QStringLiteral("libretranslate"));
-    QCOMPARE(ids.at(4), QStringLiteral("custom_url"));
+    QCOMPARE(ids.at(2), QStringLiteral("mymemory_free"));
+    QCOMPARE(ids.at(3), QStringLiteral("deepl_api"));
+    QCOMPARE(ids.at(4), QStringLiteral("libretranslate"));
+    QCOMPARE(ids.at(5), QStringLiteral("custom_url"));
 
     for (const QString &id : ids) {
         QCOMPARE(TranslationClient::providerToId(TranslationClient::providerFromId(id)), id);
@@ -43,6 +45,7 @@ void TranslationClientTests::legacyProviderIdsMapToFreeProviders()
 {
     QCOMPARE(TranslationClient::providerFromId(QStringLiteral("google")), Provider::GoogleFree);
     QCOMPARE(TranslationClient::providerFromId(QStringLiteral("yandex")), Provider::YandexFree);
+    QCOMPARE(TranslationClient::providerFromId(QStringLiteral("mymemory")), Provider::MyMemoryFree);
 }
 
 void TranslationClientTests::unknownProviderIdFallsBackToGoogle()
@@ -51,10 +54,11 @@ void TranslationClientTests::unknownProviderIdFallsBackToGoogle()
     QCOMPARE(TranslationClient::providerFromId(QStringLiteral("nonsense")), Provider::GoogleFree);
 }
 
-void TranslationClientTests::freeFallbackOnlyForYandex()
+void TranslationClientTests::freeFallbackChain()
 {
     QCOMPARE(TranslationClient::freeFallbackFor(Provider::YandexFree), Provider::GoogleFree);
-    QCOMPARE(TranslationClient::freeFallbackFor(Provider::GoogleFree), Provider::GoogleFree);
+    QCOMPARE(TranslationClient::freeFallbackFor(Provider::GoogleFree), Provider::MyMemoryFree);
+    QCOMPARE(TranslationClient::freeFallbackFor(Provider::MyMemoryFree), Provider::MyMemoryFree);
     QCOMPARE(TranslationClient::freeFallbackFor(Provider::DeepLApi), Provider::DeepLApi);
     QCOMPARE(TranslationClient::freeFallbackFor(Provider::LibreTranslate), Provider::LibreTranslate);
     QCOMPARE(TranslationClient::freeFallbackFor(Provider::CustomUrl), Provider::CustomUrl);
@@ -72,6 +76,18 @@ void TranslationClientTests::googleReplyParsing()
 
     QCOMPARE(TranslationClient::parseGoogleReply("[]", &error), QString());
     QVERIFY(!error.isEmpty());
+}
+
+void TranslationClientTests::myMemoryReplyParsing()
+{
+    QString error;
+    const QByteArray ok = R"({"responseData":{"translatedText":"Привет мир"},"responseStatus":200})";
+    QCOMPARE(TranslationClient::parseMyMemoryReply(ok, &error), QStringLiteral("Привет мир"));
+    QVERIFY(error.isEmpty());
+
+    const QByteArray apiError = R"({"responseData":{"translatedText":"quota exceeded"},"responseDetails":"quota exceeded","responseStatus":"429"})";
+    QCOMPARE(TranslationClient::parseMyMemoryReply(apiError, &error), QString());
+    QVERIFY(error.contains(QStringLiteral("quota exceeded")));
 }
 
 void TranslationClientTests::yandexReplyParsing()
@@ -135,6 +151,8 @@ void TranslationClientTests::parseErrorsAreReported()
     QVERIFY(TranslationClient::parseGoogleReply("###", &error).isEmpty());
     QVERIFY(!error.isEmpty());
     QVERIFY(TranslationClient::parseYandexReply("###", &error).isEmpty());
+    QVERIFY(!error.isEmpty());
+    QVERIFY(TranslationClient::parseMyMemoryReply("###", &error).isEmpty());
     QVERIFY(!error.isEmpty());
     QVERIFY(TranslationClient::parseDeepLReply("###", &error).isEmpty());
     QVERIFY(!error.isEmpty());

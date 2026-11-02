@@ -6,6 +6,7 @@
 // Провайдеры:
 //   google_free     — неофициальный endpoint Google gtx (без ключа, experimental)
 //   yandex_free     — неофициальный endpoint Yandex tr.json (без ключа, experimental)
+//   mymemory_free   — MyMemory с автоопределением языка, резервный бесплатный перевод
 //   deepl_api       — официальный DeepL API v2 (нужен ключ, Settings → Translation)
 //   libretranslate  — self-hosted LibreTranslate (нужен base URL, ключ опционален)
 //   custom_url      — произвольный endpoint: OpenAI-compatible chat/completions
@@ -26,15 +27,15 @@
 class TranslationClient : public QObject {
     Q_OBJECT
 public:
-    enum class Provider { GoogleFree, YandexFree, DeepLApi, LibreTranslate, CustomUrl };
+    enum class Provider { GoogleFree, YandexFree, MyMemoryFree, DeepLApi, LibreTranslate, CustomUrl };
 
     static QString providerToId(Provider provider);
     static Provider providerFromId(const QString &id); // неизвестный/legacy id -> GoogleFree
     static QString providerDisplayName(Provider provider);
     static QStringList providerIds(); // порядок отображения в UI
 
-    // Fallback-политика для нестабильных бесплатных провайдеров:
-    // YandexFree при сбое один раз повторяет текущую строку через GoogleFree.
+    // Цепочка для нестабильных бесплатных провайдеров:
+    // YandexFree -> GoogleFree -> MyMemoryFree.
     static Provider freeFallbackFor(Provider provider); // provider без fallback -> сам provider
 
     explicit TranslationClient(QObject *parent = nullptr);
@@ -56,6 +57,7 @@ public:
     // Чистые парсеры ответов — независимы от сети, доступны тестам.
     static QString parseGoogleReply(const QByteArray &body, QString *error);
     static QString parseYandexReply(const QByteArray &body, QString *error);
+    static QString parseMyMemoryReply(const QByteArray &body, QString *error);
     static QString parseDeepLReply(const QByteArray &body, QString *error);
     static QString parseLibreReply(const QByteArray &body, QString *error);
     static QString parseCustomReply(const QByteArray &body, QString *error);

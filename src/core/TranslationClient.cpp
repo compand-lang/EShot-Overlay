@@ -30,7 +30,8 @@ QString providerSettingsKey(TranslationClient::Provider provider) {
     case Provider::LibreTranslate: return QStringLiteral("translation/libreApiKey");
     case Provider::CustomUrl:     return QStringLiteral("translation/customApiKey");
     case Provider::GoogleFree:
-    case Provider::YandexFree:    break;
+    case Provider::YandexFree:
+    case Provider::MyMemoryFree:  break;
     }
     return QString();
 }
@@ -59,6 +60,7 @@ QString TranslationClient::providerToId(Provider provider) {
     switch (provider) {
     case Provider::GoogleFree:     return QStringLiteral("google_free");
     case Provider::YandexFree:     return QStringLiteral("yandex_free");
+    case Provider::MyMemoryFree:   return QStringLiteral("mymemory_free");
     case Provider::DeepLApi:       return QStringLiteral("deepl_api");
     case Provider::LibreTranslate: return QStringLiteral("libretranslate");
     case Provider::CustomUrl:      return QStringLiteral("custom_url");
@@ -70,6 +72,8 @@ TranslationClient::Provider TranslationClient::providerFromId(const QString &id)
     const QString normalized = id.trimmed().toLower();
     if (normalized == QStringLiteral("yandex_free") || normalized == QStringLiteral("yandex"))
         return Provider::YandexFree;
+    if (normalized == QStringLiteral("mymemory_free") || normalized == QStringLiteral("mymemory"))
+        return Provider::MyMemoryFree;
     if (normalized == QStringLiteral("deepl_api") || normalized == QStringLiteral("deepl"))
         return Provider::DeepLApi;
     if (normalized == QStringLiteral("libretranslate") || normalized == QStringLiteral("libre"))
@@ -84,6 +88,7 @@ QString TranslationClient::providerDisplayName(Provider provider) {
     switch (provider) {
     case Provider::GoogleFree:     return QStringLiteral("Google (free, experimental)");
     case Provider::YandexFree:     return QStringLiteral("Yandex (free, experimental)");
+    case Provider::MyMemoryFree:   return QStringLiteral("MyMemory (free fallback)");
     case Provider::DeepLApi:       return QStringLiteral("DeepL API");
     case Provider::LibreTranslate: return QStringLiteral("LibreTranslate (self-hosted)");
     case Provider::CustomUrl:      return QStringLiteral("Custom endpoint");
@@ -92,15 +97,18 @@ QString TranslationClient::providerDisplayName(Provider provider) {
 }
 
 QStringList TranslationClient::providerIds() {
-    return {providerToId(Provider::GoogleFree),     providerToId(Provider::YandexFree),
-            providerToId(Provider::DeepLApi),       providerToId(Provider::LibreTranslate),
-            providerToId(Provider::CustomUrl)};
+    return {providerToId(Provider::GoogleFree),   providerToId(Provider::YandexFree),
+            providerToId(Provider::MyMemoryFree), providerToId(Provider::DeepLApi),
+            providerToId(Provider::LibreTranslate), providerToId(Provider::CustomUrl)};
 }
 
 TranslationClient::Provider TranslationClient::freeFallbackFor(Provider provider) {
-    // Yandex нестабилен без ключа: один retry текущей строки через Google.
+    // Бесплатные endpoint'ы периодически ограничивают запросы. Цепочка
+    // не имеет циклов: Yandex -> Google -> MyMemory.
     if (provider == Provider::YandexFree)
         return Provider::GoogleFree;
+    if (provider == Provider::GoogleFree)
+        return Provider::MyMemoryFree;
     return provider;
 }
 
@@ -234,6 +242,17 @@ TranslationClient::BuiltRequest TranslationClient::buildRequest(const QString &t
         request.ok = true;
         return request;
     }
+    case Provider::MyMemoryFree: {
+        QUrl url(QStringLiteral("https://api.mymemory.translated.net/get"));
+        QUrlQuery q;
+        q.addQueryItem(QStringLiteral("q"), text);
+        q.addQueryItem(QStringLiteral("langpair"),
+                       QStringLiteral("Autodetect|%1").arg(m_targetLanguage));
+        url.setQuery(q);
+        request.url = url;
+        request.ok = true;
+        return request;
+    }
     case Provider::DeepLApi: {
         if (m_apiKey.isEmpty()) {
             failWith(QStringLiteral(
@@ -341,6 +360,7 @@ void TranslationClient::startNext() {
     }
 
     QNetworkRequest request(built.url);
+    request.setTransferTimeout(15000); // не зависаем, если сервер не отвечает
     request.setHeader(QNetworkRequest::UserAgentHeader,
                       QStringLiteral("EShot/4.3.1 (+screen translation)"));
     request.setRawHeader("Accept", "application/json,text/plain,*/*");
@@ -443,11 +463,11 @@ void TranslationClient::scheduleNext(int delayMs, int generation) {
 
 void TranslationClient::handleFailure(const QString &reason) {
     const Provider fallback = freeFallbackFor(m_runProvider);
-    if (!m_fallbackUsed && fallback != m_runProvider) {
-        m_fallbackUsed = true;
+    if (fallback != m_runProvider) {
         debugLog(QStringLiteral("fallback %1 -> %2: %3")
                      .arg(providerToId(m_runProvider), providerToId(fallback), reason));
         m_runProvider = fallback; // только для текущего прогона; QSettings не трогаем
+        m_retryCount = 0;
         startNext();              // повторяем текущую строку через fallback-провайдер
         return;
     }
@@ -459,6 +479,7 @@ QString TranslationClient::parseReplyFor(Provider provider, const QByteArray &bo
     switch (provider) {
     case Provider::GoogleFree:     return parseGoogleReply(body, error);
     case Provider::YandexFree:     return parseYandexReply(body, error);
+    case Provider::MyMemoryFree:   return parseMyMemoryReply(body, error);
     case Provider::DeepLApi:       return parseDeepLReply(body, error);
     case Provider::LibreTranslate: return parseLibreReply(body, error);
     case Provider::CustomUrl:      return parseCustomReply(body, error);
@@ -513,6 +534,36 @@ QString TranslationClient::parseYandexReply(const QByteArray &body, QString *err
         return QString();
     }
     return joined;
+}
+
+QString TranslationClient::parseMyMemoryReply(const QByteArray &body, QString *error) {
+    *error = QString();
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(body, &parseError);
+    if (parseError.error != QJsonParseError::NoError) {
+        *error = QStringLiteral("MyMemory: JSON: %1").arg(parseError.errorString());
+        return QString();
+    }
+
+    const QJsonObject obj = doc.object();
+    const QJsonObject response = obj.value(QStringLiteral("responseData")).toObject();
+    const int status = obj.value(QStringLiteral("responseStatus")).toVariant().toInt();
+    if (status != 200) {
+        QString detail = obj.value(QStringLiteral("responseDetails")).toString().trimmed();
+        if (detail.isEmpty())
+            detail = response.value(QStringLiteral("translatedText")).toString().trimmed();
+        *error = detail.isEmpty()
+                     ? QStringLiteral("MyMemory: API status %1").arg(status)
+                     : QStringLiteral("MyMemory: %1").arg(detail);
+        return QString();
+    }
+
+    const QString text = response.value(QStringLiteral("translatedText")).toString().trimmed();
+    if (text.isEmpty()) {
+        *error = QStringLiteral("MyMemory: empty translation response");
+        return QString();
+    }
+    return text;
 }
 
 QString TranslationClient::parseDeepLReply(const QByteArray &body, QString *error) {
