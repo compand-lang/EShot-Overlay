@@ -14,6 +14,7 @@ private slots:
     void legacyProviderIdsMapToFreeProviders();
     void unknownProviderIdFallsBackToGoogle();
     void freeFallbackChain();
+    void retryPolicySkipsRateLimits();
     void googleReplyParsing();
     void myMemoryReplyParsing();
     void yandexReplyParsing();
@@ -62,6 +63,17 @@ void TranslationClientTests::freeFallbackChain()
     QCOMPARE(TranslationClient::freeFallbackFor(Provider::DeepLApi), Provider::DeepLApi);
     QCOMPARE(TranslationClient::freeFallbackFor(Provider::LibreTranslate), Provider::LibreTranslate);
     QCOMPARE(TranslationClient::freeFallbackFor(Provider::CustomUrl), Provider::CustomUrl);
+}
+
+void TranslationClientTests::retryPolicySkipsRateLimits()
+{
+    QVERIFY(!TranslationClient::shouldRetryHttpStatus(429));
+    QVERIFY(!TranslationClient::shouldRetryHttpStatus(400));
+    QVERIFY(!TranslationClient::shouldRetryHttpStatus(0));
+    QVERIFY(TranslationClient::shouldRetryHttpStatus(500));
+    QVERIFY(TranslationClient::shouldRetryHttpStatus(502));
+    QVERIFY(TranslationClient::shouldRetryHttpStatus(503));
+    QVERIFY(!TranslationClient::shouldRetryHttpStatus(600));
 }
 
 void TranslationClientTests::googleReplyParsing()

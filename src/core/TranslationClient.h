@@ -37,6 +37,8 @@ public:
     // Цепочка для нестабильных бесплатных провайдеров:
     // YandexFree -> GoogleFree -> MyMemoryFree.
     static Provider freeFallbackFor(Provider provider); // provider без fallback -> сам provider
+    // Повторяем только временные ошибки сервера; 429 сразу уходит в fallback.
+    static bool shouldRetryHttpStatus(int httpCode);
 
     explicit TranslationClient(QObject *parent = nullptr);
 
@@ -100,7 +102,7 @@ private:
     bool m_running = false;
     bool m_fallbackUsed = false;
     int m_generation = 0;
-    int m_retryCount = 0; // повторные попытки текущей строки при 429/5xx
+    int m_retryCount = 0; // повторные попытки текущей строки при 5xx
 };
 
 #endif

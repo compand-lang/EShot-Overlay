@@ -111,6 +111,10 @@ jobs:
           echo Using QT_DIR=%QT_DIR%
           build.bat > build\build-log.txt 2>&1
 
+      - name: Test translation retry policy
+        shell: cmd
+        run: ctest --test-dir build -C Release --output-on-failure -R "^translation_client$"
+
       - name: Bundle OpenSSL runtime
         shell: pwsh
         run: |

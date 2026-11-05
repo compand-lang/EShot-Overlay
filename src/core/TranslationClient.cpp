@@ -112,6 +112,10 @@ TranslationClient::Provider TranslationClient::freeFallbackFor(Provider provider
     return provider;
 }
 
+bool TranslationClient::shouldRetryHttpStatus(int httpCode) {
+    return httpCode >= 500 && httpCode <= 599;
+}
+
 TranslationClient::TranslationClient(QObject *parent) : QObject(parent) {
     QSettings settings = translationSettings();
     m_provider = providerFromId(settings.value(QStringLiteral("translation/provider"),
@@ -407,8 +411,10 @@ void TranslationClient::onReplyFinished(QNetworkReply *reply, int generation) {
 
     if (reply->error() != QNetworkReply::NoError) {
         const int httpCode = status.isValid() ? status.toInt() : 0;
-        // 429/5xx — временная ошибка: ждём (Retry-After, если есть) и повторяем строку.
-        if ((httpCode == 429 || httpCode >= 500) && m_retryCount < 2) {
+        // 5xx — временная ошибка: ждём (Retry-After, если есть) и повторяем.
+        // При 429 бесплатный endpoint уже ограничил запросы: сразу fallback,
+        // без двух дополнительных запросов и шести секунд ожидания.
+        if (shouldRetryHttpStatus(httpCode) && m_retryCount < 2) {
             ++m_retryCount;
             int delaySec = 3;
             bool ok = false;
