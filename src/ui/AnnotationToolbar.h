@@ -40,6 +40,7 @@ signals:
     void eyedropperRequested();
     void lockToggled(bool locked);
     void ocrRequested();
+    void ocrTranslateRequested();
     void uploadRequested();
     void googleLensRequested();
     // The record button: opens the recording drawer (GIF or video).
@@ -98,6 +99,7 @@ private:
 
     // OCR and upload
     QPushButton *m_ocrButton;
+    QPushButton *m_ocrTranslateButton;
     QPushButton *m_uploadButton;
     QPushButton *m_lensButton;
     bool m_highContrast = false;

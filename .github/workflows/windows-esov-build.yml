@@ -1,0 +1,162 @@
+name: EShot Overlay Windows Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master, 'port-*' ]
+
+jobs:
+  build-windows-x64:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify patched sources
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build | Out-Null
+          Set-Content build\build-log.txt "Verify patched sources..."
+          $h = Get-Content src/core/OcrEngine.h -Raw
+          $cpp = Get-Content src/core/OcrEngine.cpp -Raw
+          $dlg = Get-Content src/ui/TranslatedOverlayDialog.cpp -Raw
+          $cap = Get-Content src/capture/CaptureOverlay.cpp -Raw
+          if (-not $h.Contains('recognizeWithLayout')) {
+            Add-Content build\build-log.txt "FAIL: src/core/OcrEngine.h is NOT patched."
+            throw 'src/core/OcrEngine.h is NOT patched.'
+          }
+          if ($cpp.Contains("QLatin1Char('" + [char]10 + "')")) {
+            Add-Content build\build-log.txt "FAIL: src/core/OcrEngine.cpp still has broken QLatin1Char newline."
+            throw 'src/core/OcrEngine.cpp still has broken QLatin1Char newline.'
+          }
+          $lambdaIdx = $cpp.IndexOf('[this, self, imagePath, withLayout, tsvPath]')
+          $declIdx = $cpp.IndexOf('QString tsvPath;')
+          if ($lambdaIdx -lt 0 -or $declIdx -lt 0 -or $declIdx -gt $lambdaIdx) {
+            Add-Content build\build-log.txt "FAIL: OcrEngine.cpp tsvPath must be declared before the finished lambda. Use fixed6 source."
+            throw 'src/core/OcrEngine.cpp tsvPath declaration/capture is not fixed.'
+          }
+          if ($cap.Contains('ui/OcrDialog.h')) {
+            Add-Content build\build-log.txt "FAIL: CaptureOverlay.cpp still includes removed ui/OcrDialog.h."
+            throw 'src/capture/CaptureOverlay.cpp still includes ui/OcrDialog.h.'
+          }
+          if (-not (Test-Path src/ui/TranslatorDialog.cpp)) {
+            Add-Content build\build-log.txt "FAIL: src/ui/TranslatorDialog.cpp is missing."
+            throw 'src/ui/TranslatorDialog.cpp is missing.'
+          }
+          if (-not $dlg.Contains('copyAllText')) {
+            Add-Content build\build-log.txt "FAIL: TranslatedOverlayDialog.cpp is NOT patched."
+            throw 'src/ui/TranslatedOverlayDialog.cpp is NOT patched.'
+          }
+          Add-Content build\build-log.txt "OK: source patch markers found."
+
+      - name: Install Qt 6.8.2
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.2'
+          arch: win64_msvc2022_64
+
+      # Bundle the same portable components as the original EShot release.
+      # Pin immutable URLs and hashes so CI never silently packages another binary.
+      - name: Stage bundled FFmpeg
+        shell: pwsh
+        run: |
+          $url = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-10-23-13-04/ffmpeg-N-127957-g935f29eaae-win64-gpl.zip'
+          $expected = 'fcf14fbbf9937ead11f464c6ecc73bc30400441ab6048c8cf3c55d77fd1c1042'
+          curl.exe -L --fail --retry 3 --retry-delay 5 -o ffmpeg.zip $url
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download the pinned FFmpeg build' }
+          if ((Get-FileHash ffmpeg.zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+            throw 'FFmpeg archive SHA-256 mismatch'
+          }
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_extract -Force
+          New-Item -ItemType Directory -Force third_party/ffmpeg/bin | Out-Null
+          Copy-Item (Get-ChildItem -Recurse ffmpeg_extract/*/bin/*.exe) third_party/ffmpeg/bin/ -Force
+          $license = Get-ChildItem ffmpeg_extract -Recurse -Filter LICENSE.txt | Select-Object -First 1
+          if ($license) { Copy-Item $license.FullName third_party/ffmpeg/bin/LICENSE.txt -Force }
+          & third_party/ffmpeg/bin/ffmpeg.exe -version
+          if ($LASTEXITCODE -ne 0) { throw 'Bundled ffmpeg.exe failed to launch' }
+
+      - name: Stage bundled Tesseract OCR
+        shell: pwsh
+        run: |
+          $url = 'https://github.com/Benoks/EShot/releases/download/v4.1.2/EShot-v4.1.2-x64-portable.zip'
+          $expected = '5de6f60e4272e411ed464d9b6a8d2d0806a8aee43bbeadcf9da29a4d440c5105'
+          curl.exe -L --fail --retry 3 --retry-delay 5 -o tesseract-runtime.zip $url
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download the verified Tesseract runtime' }
+          if ((Get-FileHash tesseract-runtime.zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+            throw 'Tesseract runtime archive SHA-256 mismatch'
+          }
+          Expand-Archive tesseract-runtime.zip -DestinationPath tesseract-runtime -Force
+          $runtime = Get-ChildItem tesseract-runtime -Recurse -Directory |
+            Where-Object { Test-Path (Join-Path $_.FullName 'tesseract.exe') } |
+            Select-Object -First 1
+          if (-not $runtime) { throw 'Tesseract runtime not found in the verified archive' }
+          New-Item -ItemType Directory -Force third_party/tesseract | Out-Null
+          Copy-Item "$($runtime.FullName)\*" third_party/tesseract -Recurse -Force
+          & third_party/tesseract/tesseract.exe --version
+          if ($LASTEXITCODE -ne 0) { throw 'Bundled tesseract.exe failed to launch' }
+
+      - name: Setup MSVC x64
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Build EShot x64 Release
+        shell: cmd
+        run: |
+          mkdir build 2>nul
+          if not defined QT_ROOT_DIR (
+            echo ERROR: QT_ROOT_DIR is not set by install-qt-action.
+            exit /b 1
+          )
+          set QT_DIR=%QT_ROOT_DIR%
+          echo Using QT_DIR=%QT_DIR%
+          build.bat > build\build-log.txt 2>&1
+
+      - name: Bundle OpenSSL runtime
+        shell: pwsh
+        run: |
+          # Reuse the verified OpenSSL 3 runtime already shipped with Tesseract.
+          Copy-Item third_party/tesseract/libcrypto-3-x64.dll dist/bin/ -Force
+          Copy-Item third_party/tesseract/libssl-3-x64.dll dist/bin/ -Force
+
+      - name: Verify bundled OCR, recording and network components
+        shell: pwsh
+        run: |
+          $required = @(
+            'dist/bin/EShot.exe',
+            'dist/bin/tesseract/tesseract.exe',
+            'dist/bin/tesseract/tessdata/eng.traineddata',
+            'dist/bin/tesseract/tessdata/rus.traineddata',
+            'dist/bin/ffmpeg/ffmpeg.exe',
+            'dist/bin/ffmpeg/ffprobe.exe',
+            'dist/bin/tls/qopensslbackend.dll',
+            'dist/bin/libcrypto-3-x64.dll',
+            'dist/bin/libssl-3-x64.dll'
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) { throw "Missing bundled component: $path" }
+          }
+          & dist/bin/tesseract/tesseract.exe --list-langs 2>&1 |
+            Tee-Object -Variable languages | Add-Content build/build-log.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Installed Tesseract failed to list languages' }
+          $languageNames = $languages | ForEach-Object { $_.ToString().Trim() }
+          if ($languageNames -notcontains 'eng' -or $languageNames -notcontains 'rus') {
+            throw 'Bundled English or Russian OCR language data is unavailable'
+          }
+          & dist/bin/ffmpeg/ffmpeg.exe -version 2>&1 |
+            Select-Object -First 1 | Add-Content build/build-log.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Installed FFmpeg failed to launch' }
+          Add-Content build/build-log.txt 'OK: Tesseract, FFmpeg, OCR languages and OpenSSL TLS are bundled.'
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: EShot-build-log
+          path: build/build-log.txt
+
+      - name: Upload dist
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: EShot-overlay-windows-x64
+          path: dist\bin

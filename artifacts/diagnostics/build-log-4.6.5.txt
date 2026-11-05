@@ -1,0 +1,564 @@
+============================================================
+ EShot build : arch=x64  config=Release
+============================================================
+Using Qt: D:\a\EShot-Overlay\Qt\6.8.2\msvc2022_64
+
+[1/4] Configuring...
+-- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.20348.
+-- The CXX compiler identification is MSVC 19.44.35229.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - not found
+-- Found Threads: TRUE
+-- Performing Test HAVE_STDATOMIC
+-- Performing Test HAVE_STDATOMIC - Success
+-- Found WrapAtomic: TRUE
+-- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR) 
+-- Configuring done (15.4s)
+-- Generating done (0.9s)
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    CMAKE_BUILD_TYPE
+
+
+-- Build files have been written to: D:/a/EShot-Overlay/EShot-Overlay/build
+
+[2/4] Building...
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  1>Checking Build System
+  Automatic MOC and UIC for target EShot
+  Automatic MOC and UIC for target eshot_annotation_engine_tests
+  Automatic MOC and UIC for target eshot_annotation_rotation_geometry_tests
+  Automatic MOC and UIC for target eshot_about_dialog_tests
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Automatic MOC and UIC for target eshot_application_instance_command_tests
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Automatic MOC and UIC for target eshot_application_theme_tests
+  1>Automatic RCC for resources/icons.qrc
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Automatic MOC and UIC for target eshot_audio_devices_tests
+  Automatic MOC and UIC for target eshot_capture_geometry_tests
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Automatic MOC and UIC for target eshot_capture_interaction_policy_tests
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Automatic MOC and UIC for target eshot_capture_screen_image_tests
+  Automatic MOC and UIC for target eshot_capture_screen_views_tests
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Automatic MOC and UIC for target eshot_component_download_policy_tests
+  Automatic MOC and UIC for target eshot_control_center_dialog_tests
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Automatic MOC and UIC for target eshot_debounced_settings_writer_tests
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Automatic MOC and UIC for target eshot_gif_encoder_tests
+  1>Automatic RCC for resources/icons.qrc
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  1>Automatic RCC for resources/icons.qrc
+  Automatic MOC and UIC for target eshot_linux_dependency_selection_tests
+  Automatic MOC and UIC for target eshot_linux_recording_support_tests
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  main.cpp
+  Automatic MOC and UIC for target eshot_linux_update_script_tests
+  GifEncoderTests.cpp
+  ComponentDownloadPolicyTests.cpp
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  LinuxDependencySelectionTests.cpp
+  LinuxRecordingSupportTests.cpp
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  LinuxUpdateScriptTests.cpp
+  LinuxDependencySelection.cpp
+  ComponentDownloadPolicy.cpp
+  LinuxRecordingSupport.cpp
+  LinuxUpdateScript.cpp
+  GifEncoder.cpp
+  mocs_compilation_Release.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  Sha256Digest.cpp
+  Generating Code...
+  HotkeyManager.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  mocs_compilation_Release.cpp
+  Generating Code...
+  CaptureScreenImageTests.cpp
+  DebouncedSettingsWriterTests.cpp
+  mocs_compilation_Release.cpp
+  eshot_linux_update_script_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_linux_update_script_tests.exe
+  Generating Code...
+  CaptureScreenViewsTests.cpp
+  HotkeySequence.cpp
+  CaptureScreenImage.cpp
+  ApplicationInstanceCommand.cpp
+  eshot_gif_encoder_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_gif_encoder_tests.exe
+  DebouncedSettingsWriter.cpp
+  OcrEngine.cpp
+  ControlCenterDialogTests.cpp
+  CaptureScreenViews.cpp
+  CaptureGeometry.cpp
+  mocs_compilation_Release.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  CaptureScreenImage.cpp
+  eshot_component_download_policy_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_component_download_policy_tests.exe
+  TranslationClient.cpp
+  Generating Code...
+  AudioDevicesTests.cpp
+  CaptureGeometry.cpp
+  CaptureGeometryTests.cpp
+  ControlCenterDialog.cpp
+  mocs_compilation_Release.cpp
+  OcrLanguageSelector.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  eshot_capture_screen_image_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_capture_screen_image_tests.exe
+  AudioDevices.cpp
+  CaptureGeometry.cpp
+  AboutDialogTests.cpp
+  LinuxPortalGlobalShortcuts.cpp
+  Generating Code...
+  mocs_compilation_Release.cpp
+  Generating Code...
+  eshot_capture_screen_views_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_capture_screen_views_tests.exe
+  Automatic MOC and UIC for target eshot_notification_folder_opener_tests
+  qrc_icons.cpp
+  LinuxRecordingSupport.cpp
+  eshot_debounced_settings_writer_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_debounced_settings_writer_tests.exe
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  NotificationFolderOpenerTests.cpp
+  eshot_control_center_dialog_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_control_center_dialog_tests.exe
+  LinuxPortalScreenCast.cpp
+  mocs_compilation_Release.cpp
+  eshot_capture_geometry_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_capture_geometry_tests.exe
+  Generating Code...
+  AboutDialog.cpp
+  LinuxPortalScreenshot.cpp
+  NotificationFolderOpener.cpp
+  ApplicationInstanceCommandTests.cpp
+  mocs_compilation_Release.cpp
+  CaptureInteractionPolicyTests.cpp
+  LinuxDesktopIntegration.cpp
+  Generating Code...
+  mocs_compilation_Release.cpp
+  Generating Code...
+  LinuxGnomeShortcutInstaller.cpp
+  eshot_audio_devices_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_audio_devices_tests.exe
+  qrc_icons.cpp
+  AnnotationEngineTests.cpp
+  ApplicationInstanceCommand.cpp
+  LinuxPortalRequest.cpp
+  eshot_notification_folder_opener_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_notification_folder_opener_tests.exe
+  mocs_compilation_Release.cpp
+  Generating Code...
+  eshot_about_dialog_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_about_dialog_tests.exe
+  Automatic MOC and UIC for target eshot_ocr_language_selector_tests
+  ApplicationThemeTests.cpp
+  eshot_linux_recording_support_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_linux_recording_support_tests.exe
+  CaptureInteractionPolicy.cpp
+  LinuxPortalHostRegistry.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  LinuxAutoStartPolicy.cpp
+  eshot_application_instance_command_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_application_instance_command_tests.exe
+  Automatic MOC and UIC for target eshot_overlay_panel_style_tests
+  AnnotationEngine.cpp
+  eshot_capture_interaction_policy_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_capture_interaction_policy_tests.exe
+  AnnotationRotationGeometryTests.cpp
+  ApplicationTheme.cpp
+  LinuxScreenshotPolicy.cpp
+  ImageEffects.cpp
+  mocs_compilation_Release.cpp
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  mocs_compilation_Release.cpp
+  Generating Code...
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  ImageUploader.cpp
+  OcrLanguageSelectorTests.cpp
+  AnnotationRotationGeometry.cpp
+  eshot_application_theme_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_application_theme_tests.exe
+  Generating Code...
+  mocs_compilation_Release.cpp
+  Generating Code...
+  OverlayPanelStyleTests.cpp
+  eshot_linux_dependency_selection_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_linux_dependency_selection_tests.exe
+  Automatic MOC and UIC for target eshot_recording_control_layout_tests
+  eshot_annotation_rotation_geometry_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_annotation_rotation_geometry_tests.exe
+  Automatic MOC and UIC for target eshot_recording_drawer_policy_tests
+  eshot_annotation_engine_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_annotation_engine_tests.exe
+  SecureCredentialStore.cpp
+  Automatic MOC and UIC for target eshot_recording_finalization_policy_tests
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  OcrLanguageSelector.cpp
+  RecordingControlLayoutTests.cpp
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  UploadResponseParser.cpp
+  OverlayPanelStyle.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  eshot_ocr_language_selector_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_ocr_language_selector_tests.exe
+  VisualSearch.cpp
+  Automatic MOC and UIC for target eshot_recording_indicator_tests
+  RecordingFinalizationPolicyTests.cpp
+  RecordingDrawerPolicyTests.cpp
+  RecordingControlLayout.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  Generating Code...
+  mocs_compilation_Release.cpp
+  Generating Code...
+  eshot_overlay_panel_style_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_overlay_panel_style_tests.exe
+  Automatic MOC and UIC for target eshot_recording_segments_tests
+  eshot_recording_control_layout_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_recording_control_layout_tests.exe
+  RecordingFinalizationPolicy.cpp
+  Automatic MOC and UIC for target eshot_recording_settings_policy_tests
+  1>Automatic RCC for resources/icons.qrc
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  RecordingDrawerPolicy.cpp
+  RecordingSegmentsTests.cpp
+  Compiling...
+  Sha256Digest.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  mocs_compilation_Release.cpp
+  Generating Code...
+  RecordingSettingsPolicyTests.cpp
+  RecordingIndicatorTests.cpp
+  ComponentDownloadPolicy.cpp
+  RecordingSegments.cpp
+  eshot_recording_finalization_policy_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_recording_finalization_policy_tests.exe
+  eshot_recording_drawer_policy_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_recording_drawer_policy_tests.exe
+  UpdateAssetSelector.cpp
+  Automatic MOC and UIC for target eshot_recording_start_countdown_tests
+  Automatic MOC and UIC for target eshot_recording_start_countdown_policy_tests
+  RecordingSettingsPolicy.cpp
+  RecordingIndicator.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  mocs_compilation_Release.cpp
+  Generating Code...
+  UpdatePolicy.cpp
+  eshot_recording_segments_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_recording_segments_tests.exe
+  Automatic MOC and UIC for target eshot_recording_timeline_tests
+  eshot_recording_settings_policy_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_recording_settings_policy_tests.exe
+  Automatic MOC and UIC for target eshot_screen_recorder_pause_api_tests
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  RecordingStartCountdownPolicyTests.cpp
+  RecordingStartCountdownTests.cpp
+  RecordingControlLayout.cpp
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  WindowsInstallPolicy.cpp
+  mocs_compilation_Release.cpp
+  ComponentPaths.cpp
+  RecordingStartCountdownPolicy.cpp
+  RecordingStartCountdown.cpp
+  Generating Code...
+  mocs_compilation_Release.cpp
+  Generating Code...
+  RecordingTimelineTests.cpp
+  ScreenRecorderPauseApiTests.cpp
+  WindowsElevatedStartup.cpp
+  RecordingStartCountdownPolicy.cpp
+  mocs_compilation_Release.cpp
+  OnboardingTips.cpp
+  RecordingTimeline.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  mocs_compilation_Release.cpp
+  Generating Code...
+  qrc_icons.cpp
+  Generating Code...
+  eshot_recording_start_countdown_policy_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_recording_start_countdown_policy_tests.exe
+  eshot_screen_recorder_pause_api_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_screen_recorder_pause_api_tests.exe
+  eshot_recording_timeline_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_recording_timeline_tests.exe
+  Automatic MOC and UIC for target eshot_secure_credential_store_tests
+  Automatic MOC and UIC for target eshot_settings_hotkey_policy_tests
+  Automatic MOC and UIC for target eshot_settings_layout_policy_tests
+  HintBubble.cpp
+  eshot_recording_indicator_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_recording_indicator_tests.exe
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  eshot_recording_start_countdown_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_recording_start_countdown_tests.exe
+  SecureCredentialStoreTests.cpp
+  SettingsHotkeyPolicyTests.cpp
+  Automatic MOC and UIC for target eshot_settings_translation_tests
+  Automatic MOC and UIC for target eshot_translated_overlay_dialog_tests
+  SettingsLayoutPolicyTests.cpp
+  ShortcutSheet.cpp
+  SecureCredentialStore.cpp
+  SettingsHotkeyPolicy.cpp
+  SettingsLayoutPolicy.cpp
+  LinuxUpdateScript.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  mocs_compilation_Release.cpp
+  Generating Code...
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  LinuxDependencySelection.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  SettingsTranslationTests.cpp
+  TranslatedOverlayDialogTests.cpp
+  Automatic MOC and UIC for target eshot_translation_client_tests
+  eshot_settings_layout_policy_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_settings_layout_policy_tests.exe
+  eshot_settings_hotkey_policy_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_settings_hotkey_policy_tests.exe
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  CatboxUploader.cpp
+  TranslationClientTests.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  Automatic MOC and UIC for target eshot_update_asset_tests
+  eshot_secure_credential_store_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_secure_credential_store_tests.exe
+  Automatic MOC and UIC for target eshot_update_policy_tests
+  eshot_settings_translation_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_settings_translation_tests.exe
+  TranslatedOverlayDialog.cpp
+  UguuUploader.cpp
+  Automatic MOC and UIC for target eshot_upload_response_parser_tests
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  UpdateAssetSelectorTests.cpp
+  TranslationClient.cpp
+  mocs_compilation_Release.cpp
+  UpdateManager.cpp
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Generating Code...
+  UpdatePolicyTests.cpp
+  UpdateAssetSelector.cpp
+  mocs_compilation_Release.cpp
+  NotificationFolderOpener.cpp
+  Sha256Digest.cpp
+  Generating Code...
+  UpdatePolicy.cpp
+  UploadResponseParserTests.cpp
+  eshot_translated_overlay_dialog_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_translated_overlay_dialog_tests.exe
+  DebouncedSettingsWriter.cpp
+  Automatic MOC and UIC for target eshot_video_recording_completion_policy_tests
+  mocs_compilation_Release.cpp
+  Generating Code...
+  Automatic MOC and UIC for target eshot_visual_search_tests
+  eshot_translation_client_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_translation_client_tests.exe
+  Automatic MOC and UIC for target eshot_window_snap_policy_tests
+  CaptureGeometry.cpp
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  VideoRecordingCompletionPolicyTests.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  UploadResponseParser.cpp
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  VisualSearchTests.cpp
+  CaptureScreenImage.cpp
+  eshot_update_asset_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_update_asset_tests.exe
+  mocs_compilation_Release.cpp
+  Generating Code...
+  CaptureScreenViews.cpp
+  WindowSnapPolicyTests.cpp
+  VideoRecordingCompletionPolicy.cpp
+  VisualSearch.cpp
+  eshot_update_policy_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_update_policy_tests.exe
+  Automatic MOC and UIC for target eshot_windows_install_policy_tests
+  Generating Code...
+  eshot_upload_response_parser_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_upload_response_parser_tests.exe
+  mocs_compilation_Release.cpp
+  Generating Code...
+  mocs_compilation_Release.cpp
+  Generating Code...
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+  WindowSnapPolicy.cpp
+  WindowsInstallPolicyTests.cpp
+  eshot_video_recording_completion_policy_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_video_recording_completion_policy_tests.exe
+  eshot_visual_search_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_visual_search_tests.exe
+  Compiling...
+  CaptureInteractionPolicy.cpp
+  WindowsWindowProvider.cpp
+  WindowSnapPolicy.cpp
+  CaptureGeometry.cpp
+  WindowsWindowProvider.cpp
+  WindowsInstallPolicy.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  eshot_window_snap_policy_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_window_snap_policy_tests.exe
+  CaptureOverlay.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  eshot_windows_install_policy_tests.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\Release\eshot_windows_install_policy_tests.exe
+  PinnedWindow.cpp
+  AnnotationEngine.cpp
+  ImageEffects.cpp
+  AnnotationRotationGeometry.cpp
+  AnnotationToolbar.cpp
+  ApplicationTheme.cpp
+  OverlayPanelStyle.cpp
+  SettingsDialog.cpp
+  SettingsHotkeyPolicy.cpp
+  SettingsLayoutPolicy.cpp
+  AboutDialog.cpp
+  ControlCenterDialog.cpp
+  FirstRunWizard.cpp
+  OcrTranslateController.cpp
+  TranslatedOverlayDialog.cpp
+  TranslatorDialog.cpp
+  Generating Code...
+  Compiling...
+  UploadDialog.cpp
+  GifEncoder.cpp
+  LinuxRecordingSupport.cpp
+  RecordingSettingsPolicy.cpp
+  RecordingDrawerPolicy.cpp
+  VideoRecordingCompletionPolicy.cpp
+  RecordingControlLayout.cpp
+  RecordingTimeline.cpp
+  RecordingFinalizationPolicy.cpp
+  RecordingSegments.cpp
+  ScreenRecorder.cpp
+  AudioDevices.cpp
+  VideoRecorder.cpp
+  RecordingIndicator.cpp
+  RecordingStartCountdown.cpp
+  RecordingStartCountdownPolicy.cpp
+  PortalRecordingSource.cpp
+  mocs_compilation_Release.cpp
+  Generating Code...
+  qrc_icons.cpp
+  EShot.vcxproj -> D:\a\EShot-Overlay\EShot-Overlay\build\bin\Release\EShot.exe
+  Embedding manifest into executable	Copying bundled FFmpeg to output directory	Copying bundled Tesseract OCR to output directory
+  Microsoft (R) Manifest Tool
+  
+  Copyright (c) Microsoft Corporation. 
+  
+  All rights reserved.
+  
+  Building Custom Rule D:/a/EShot-Overlay/EShot-Overlay/CMakeLists.txt
+
+[3/4] Installing to "D:\a\EShot-Overlay\EShot-Overlay\dist"...
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/ffmpeg
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/ffmpeg/ffmpeg.exe
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/ffmpeg/ffplay.exe
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/ffmpeg/ffprobe.exe
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/ffmpeg/LICENSE.txt
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/EShot.exe
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/archive.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/bz2.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/gif.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/jpeg62.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/legacy.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/leptonica-1.87.0.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/libcrypto-3-x64.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/libcurl.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/liblzma.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/libpng16.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/libsharpyuv.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/libssl-3-x64.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/libwebp.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/libwebpdecoder.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/libwebpdemux.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/libwebpmux.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/lz4.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/openjp2.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tessdata
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tessdata/chi_sim.traineddata
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tessdata/deu.traineddata
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tessdata/eng.traineddata
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tessdata/fra.traineddata
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tessdata/ita.traineddata
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tessdata/jpn.traineddata
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tessdata/kor.traineddata
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tessdata/nld.traineddata
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tessdata/pol.traineddata
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tessdata/por.traineddata
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tessdata/rus.traineddata
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tessdata/spa.traineddata
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tessdata/tur.traineddata
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tesseract.exe
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tesseract.pdb
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tesseract55.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/tiff.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/turbojpeg.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/z.dll
+-- Installing: D:\a\EShot-Overlay\EShot-Overlay\dist/bin/tesseract/zstd.dll
+
+[4/4] Deploying Qt runtime...
+Using windeployqt: D:\a\EShot-Overlay\Qt\6.8.2\msvc2022_64\bin\windeployqt.exe
+D:\a\EShot-Overlay\EShot-Overlay\dist\bin\EShot.exe 64 bit, release executable
+Adding in plugin type generic for module: Qt6Gui
+Adding in plugin type iconengines for module: Qt6Gui
+Adding Qt6Svg for qsvgicon.dll from plugin type: iconengines
+Adding in plugin type imageformats for module: Qt6Gui
+Adding in plugin type networkinformation for module: Qt6Network
+Adding in plugin type platforms for module: Qt6Gui
+Adding in plugin type styles for module: Qt6Widgets
+Adding in plugin type tls for module: Qt6Network
+Direct dependencies: Qt6Core Qt6Gui Qt6Network Qt6Widgets
+All dependencies   : Qt6Core Qt6Gui Qt6Network Qt6Widgets
+To be deployed     : Qt6Core Qt6Gui Qt6Network Qt6Svg Qt6Widgets
+Updating Qt6Core.dll.
+Updating Qt6Gui.dll.
+Updating Qt6Network.dll.
+Updating Qt6Svg.dll.
+Updating Qt6Widgets.dll.
+Updating opengl32sw.dll.
+Updating d3dcompiler_47.dll.
+Updating dxcompiler.dll.
+Updating dxil.dll.
+Updating vc_redist.x64.exe.
+Creating directory D:/a/EShot-Overlay/EShot-Overlay/dist/bin/generic.
+Updating qtuiotouchplugin.dll.
+Creating directory D:/a/EShot-Overlay/EShot-Overlay/dist/bin/iconengines.
+Updating qsvgicon.dll.
+Creating directory D:/a/EShot-Overlay/EShot-Overlay/dist/bin/imageformats.
+Updating qgif.dll.
+Updating qico.dll.
+Updating qjpeg.dll.
+Updating qsvg.dll.
+Creating directory D:/a/EShot-Overlay/EShot-Overlay/dist/bin/networkinformation.
+Updating qnetworklistmanager.dll.
+Creating directory D:/a/EShot-Overlay/EShot-Overlay/dist/bin/platforms.
+Updating qwindows.dll.
+Creating directory D:/a/EShot-Overlay/EShot-Overlay/dist/bin/styles.
+Updating qmodernwindowsstyle.dll.
+Creating directory D:/a/EShot-Overlay/EShot-Overlay/dist/bin/tls.
+Updating qcertonlybackend.dll.
+Updating qopensslbackend.dll.
+Updating qschannelbackend.dll.
+
+============================================================
+ Build complete: D:\a\EShot-Overlay\EShot-Overlay\dist\bin\EShot.exe
+============================================================
+List of available languages in "D:\a\EShot-Overlay\EShot-Overlay\dist\bin\tesseract/tessdata/" (13):
+chi_sim
+deu
+eng
+fra
+ita
+jpn
+kor
+nld
+pol
+por
+rus
+spa
+tur
+ffmpeg version N-127957-g935f29eaae-20261023 Copyright (c) 2000-2026 the FFmpeg developers
+OK: Tesseract, FFmpeg, OCR languages and OpenSSL TLS are bundled.

@@ -122,3 +122,7 @@ ocr_test_output.txt
 # Local planning notes
 ROADMAP.md
 docs/superpowers/
+.porttmp/
+.port-base.bak
+.ci-log/
+.ci-log.zip

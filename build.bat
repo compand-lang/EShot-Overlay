@@ -136,7 +136,7 @@ set "WDQ=%QT_DIR%\bin\windeployqt.exe"
 if exist "%WDQ%" (
     REM Native kit (x64): windeployqt ships in the kit, deploy directly.
     echo Using windeployqt: %WDQ%
-    "%WDQ%" %WDQ_CONF% --no-translations "%EXE%"
+    "%WDQ%" %WDQ_CONF% --no-translations --force-openssl "%EXE%"
     if errorlevel 1 goto :fail
 ) else (
     REM Cross-compiled kit (arm64): windeployqt is a host-only x64 tool in the
@@ -156,7 +156,7 @@ if exist "%WDQ%" (
         goto :fail
     )
     echo Using host windeployqt: !WDQ!
-    "!WDQ!" !WDQ_CONF! --no-translations --qtpaths "%QT_DIR%\bin\qtpaths6.bat" "%EXE%"
+    "!WDQ!" !WDQ_CONF! --no-translations --force-openssl --qtpaths "%QT_DIR%\bin\qtpaths6.bat" "%EXE%"
     if errorlevel 1 goto :fail
 )
 

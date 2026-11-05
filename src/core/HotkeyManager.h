@@ -32,9 +32,14 @@ public:
     bool reRegisterActionHotkeys(UINT instantModifiers, UINT instantVirtualKey,
                                  UINT gifModifiers, UINT gifVirtualKey,
                                  UINT videoModifiers, UINT videoVirtualKey,
+<<<<<<< ours
+                                 UINT windowModifiers, UINT windowVirtualKey,
+                                 UINT translatorModifiers, UINT translatorVirtualKey);
+=======
                                  UINT windowModifiers, UINT windowVirtualKey);
     // "Capture screen now" (HOTKEY_SCREEN_CAPTURE); virtualKey 0 disables it.
     bool reRegisterScreenCaptureHotkey(UINT modifiers, UINT virtualKey);
+>>>>>>> theirs
     bool requestLinuxPortalShortcutRebind();
     bool linuxPortalShortcutsAvailable() const;
     UINT captureModifiers() const { return m_captureModifiers; }
@@ -70,7 +75,11 @@ signals:
     void gifCaptureRequested();
     void videoCaptureRequested();
     void windowCaptureRequested();
+<<<<<<< ours
+    void translatorRequested();
+=======
     void screenCaptureRequested();
+>>>>>>> theirs
     // Emitted when configured hotkeys stop being or could not become active
     // outside a reRegister*() request; see failedHotkeys().
     void hotkeyRegistrationFailed(const QList<int> &ids);
@@ -101,8 +110,13 @@ private:
     UINT m_videoCaptureVirtualKey = 0;
     UINT m_windowCaptureModifiers = 0;
     UINT m_windowCaptureVirtualKey = 0;
+<<<<<<< ours
+    UINT m_translatorModifiers = 0;
+    UINT m_translatorVirtualKey = 0;
+=======
     UINT m_screenCaptureModifiers = 0;
     UINT m_screenCaptureVirtualKey = 0;
+>>>>>>> theirs
     void *m_x11Display = nullptr;
     unsigned long m_x11RootWindow = 0;
     LinuxPortalGlobalShortcuts *m_portalShortcuts = nullptr;
@@ -130,7 +144,11 @@ public:
     static constexpr int HOTKEY_GIF_CAPTURE = 6;
     static constexpr int HOTKEY_VIDEO_CAPTURE = 7;
     static constexpr int HOTKEY_WINDOW_CAPTURE = 8;
+<<<<<<< ours
+    static constexpr int HOTKEY_TRANSLATOR = 9;
+=======
     static constexpr int HOTKEY_SCREEN_CAPTURE = 9;
+>>>>>>> theirs
 };
 
 #endif
