@@ -113,7 +113,9 @@ jobs:
 
       - name: Test translation retry policy
         shell: cmd
-        run: ctest --test-dir build -C Release --output-on-failure -R "^translation_client$"
+        run: |
+          set PATH=%QT_ROOT_DIR%\bin;%PATH%
+          ctest --test-dir build -C Release --output-on-failure -R "^translation_client$"
 
       - name: Bundle OpenSSL runtime
         shell: pwsh
