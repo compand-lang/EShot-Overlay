@@ -1763,6 +1763,13 @@ static void runOcrTest(const QString &imagePath)
 
 int main(int argc, char *argv[])
 {
+#ifdef Q_OS_WIN
+    // Schannel can make every HTTPS request time out when Windows cannot
+    // reach its certificate revocation services. Prefer the bundled OpenSSL
+    // backend, while keeping QT_SSL_BACKEND available for manual overrides.
+    if (qEnvironmentVariableIsEmpty("QT_SSL_BACKEND"))
+        qputenv("QT_SSL_BACKEND", QByteArray("openssl"));
+#endif
     // Qt 6 handles High-DPI automatically. Legacy overrides removed to prevent Windows ARM DWM corruption.
     QApplication app(argc, argv);
     app.setApplicationName("EShot");
